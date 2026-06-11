@@ -2,7 +2,7 @@ import Foundation
 
 /// SplitMix64 — tiny deterministic generator so each ticket's print
 /// quirks (serial, punch position, lattice phase) are stable forever.
-struct SeededRandom {
+nonisolated struct SeededRandom {
     private var state: UInt64
 
     init(_ seed: UInt64) {

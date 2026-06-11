@@ -1,7 +1,7 @@
 import Foundation
 
 /// One collected ticket — a journey, remembered.
-struct Ticket: Identifiable, Codable, Equatable, Hashable {
+nonisolated struct Ticket: Identifiable, Codable, Equatable, Hashable {
     var id = UUID()
     var createdAt = Date.now
 
@@ -38,7 +38,7 @@ struct Ticket: Identifiable, Codable, Equatable, Hashable {
     var sortDate: Date { travelDate ?? createdAt }
 }
 
-enum TicketKind: String, Codable, CaseIterable, Identifiable {
+nonisolated enum TicketKind: String, Codable, CaseIterable, Identifiable {
     case joshaken
     case shinkansen
     case tokkyu
@@ -77,7 +77,7 @@ enum TicketKind: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Railway operator → ticket paper personality.
-enum RailBrand: String, Codable, CaseIterable, Identifiable {
+nonisolated enum RailBrand: String, Codable, CaseIterable, Identifiable {
     case jrEast, jrCentral, jrWest, jrHokkaido, jrKyushu, jrShikoku
     case tokyoMetro, toei
     case odakyu, keio, tokyu, keikyu, seibu, tobu

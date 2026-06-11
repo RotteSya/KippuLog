@@ -3,7 +3,7 @@ import Foundation
 /// Print-house text helpers — full-width forms, MARS date quirks,
 /// deterministic serials. The obsessive details that make a plate
 /// read as *printed* rather than *rendered*.
-enum TicketText {
+nonisolated enum TicketText {
     /// ASCII → full-width (０-９Ａ-Ｚ). Leaves everything else alone.
     static func zenkaku(_ string: String) -> String {
         String(string.unicodeScalars.map { scalar -> Character in

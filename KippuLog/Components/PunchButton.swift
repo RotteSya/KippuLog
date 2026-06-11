@@ -25,6 +25,7 @@ struct PunchButton: View {
         .glassEffect(.regular.tint(Ink.shu.opacity(0.85)).interactive(), in: .circle)
         .shadow(color: Ink.shu.opacity(0.35), radius: 14, y: 6)
         .accessibilityLabel("切符を追加")
+        .accessibilityIdentifier("punch-button")
     }
 }
 

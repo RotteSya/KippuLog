@@ -21,16 +21,23 @@ struct TimelineView: View {
             .background(Ink.background)
             .toolbarVisibility(.hidden, for: .navigationBar)
             .navigationDestination(item: $selectedTicket) { ticket in
-                TicketStageView(ticket: ticket)
-                    .navigationTransition(.zoom(sourceID: ticket.id, in: zoomNamespace))
+                TicketStageView(selection: $selectedTicket)
+                    .navigationTransition(.zoom(
+                        sourceID: selectedTicket?.id ?? ticket.id,
+                        in: zoomNamespace
+                    ))
             }
         }
         .overlay(alignment: .bottom) {
-            PunchButton {
-                showCapture = true
+            if selectedTicket == nil {
+                PunchButton {
+                    showCapture = true
+                }
+                .padding(.bottom, 14)
+                .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
-            .padding(.bottom, 14)
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
         .fullScreenCover(isPresented: $showCapture) {
             CaptureFlowView()
         }
@@ -39,24 +46,32 @@ struct TimelineView: View {
     // MARK: Magazine
 
     private var magazine: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                masthead
-                    .padding(.top, 24)
-                    .padding(.bottom, 44)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    masthead
+                        .padding(.top, 24)
+                        .padding(.bottom, 44)
 
-                let groups = store.monthGroups
-                let starts = entryStartIndices(groups)
-                ForEach(Array(groups.enumerated()), id: \.element.month) { groupIndex, group in
-                    monthSection(group, startIndex: starts[groupIndex])
+                    let groups = store.monthGroups
+                    let starts = entryStartIndices(groups)
+                    ForEach(Array(groups.enumerated()), id: \.element.month) { groupIndex, group in
+                        monthSection(group, startIndex: starts[groupIndex])
+                    }
+
+                    colophon
+                        .padding(.top, 36)
+                        .padding(.bottom, 120)
                 }
-
-                colophon
-                    .padding(.top, 36)
-                    .padding(.bottom, 120)
+            }
+            .scrollIndicators(.hidden)
+            .onChange(of: selectedTicket) { old, new in
+                // Paging inside the stage: keep the shelf positioned so the
+                // return zoom lands on the visible plate.
+                guard old != nil, let new else { return }
+                proxy.scrollTo(new.id, anchor: .center)
             }
         }
-        .scrollIndicators(.hidden)
     }
 
     private var masthead: some View {
@@ -104,6 +119,7 @@ struct TimelineView: View {
                     Haptic.play(.tick)
                     selectedTicket = ticket
                 }
+                .id(ticket.id)
                 .padding(.horizontal, 26)
                 .padding(.bottom, 54)
             }

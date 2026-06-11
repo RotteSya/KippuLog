@@ -1,100 +1,175 @@
 import SwiftUI
 
-/// The studio — one ticket on a dark stage. (First cut: hero + facts;
-/// tilt, flip, paging and editing arrive with the full detail pass.)
+/// The studio — a dark room holding one lit ticket at a time.
+/// Swipe sideways to leaf through the collection; pinch closed (or drag
+/// the zoom transition) to put the magazine back on the table.
 struct TicketStageView: View {
+    @Environment(TicketStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    let ticket: Ticket
+    @Binding var selection: Ticket?
+
+    @State private var pageID: UUID
+    @State private var pinchScale: CGFloat = 1
+    @State private var showEdit = false
+    @State private var confirmDelete = false
+    @State private var dissolveProgress: Double = 0
+
+    init(selection: Binding<Ticket?>) {
+        _selection = selection
+        _pageID = State(initialValue: selection.wrappedValue?.id ?? UUID())
+    }
 
     var body: some View {
         ZStack {
             Ink.studio.ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    TicketPlate(ticket: ticket, lying: false)
-                        .frame(maxWidth: ticket.kind.isEdmondson ? 300 : 360)
-                        .padding(.top, 84)
-                        .padding(.bottom, 48)
-
-                    Text(ticket.routeText)
-                        .font(Typo.mincho(26))
-                        .tracking(3)
-                        .foregroundStyle(Color(hex: 0xEDE6DA))
-                        .padding(.bottom, 6)
-
-                    if let date = ticket.travelDate {
-                        Text(Editorial.shortDate(date))
-                            .font(Typo.caption(11))
-                            .tracking(2)
-                            .foregroundStyle(Color(hex: 0x9C938A))
-                    }
-
-                    factsGrid
-                        .padding(.horizontal, 32)
-                        .padding(.top, 40)
-
-                    if !ticket.memo.isEmpty {
-                        Text(ticket.memo)
-                            .font(Typo.gothic(13))
-                            .lineSpacing(7)
-                            .foregroundStyle(Color(hex: 0xBCB3A8))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 32)
-                            .padding(.top, 36)
-                    }
-
-                    Spacer(minLength: 100)
+            TabView(selection: $pageID) {
+                ForEach(store.tickets) { ticket in
+                    StagePage(
+                        ticketID: ticket.id,
+                        dissolveProgress: ticket.id == pageID ? dissolveProgress : 0
+                    )
+                    .tag(ticket.id)
                 }
             }
-            .scrollIndicators(.hidden)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .scaleEffect(pinchScale)
+        .opacity(Double(0.4 + pinchScale * 0.6))
+        .simultaneousGesture(pinchToClose)
+        .overlay(alignment: .top) { chrome }
+        .onChange(of: pageID) { old, new in
+            guard old != new else { return }
+            Haptic.play(.page)
+            if let ticket = store.tickets.first(where: { $0.id == new }) {
+                selection = ticket
+            }
+        }
+        .sheet(isPresented: $showEdit) {
+            if let ticket = currentTicket {
+                EditTicketSheet(ticket: ticket)
+            }
+        }
+        .confirmationDialog(
+            "この切符を手放しますか？",
+            isPresented: $confirmDelete,
+            titleVisibility: .visible
+        ) {
+            Button("手放す", role: .destructive) { dissolveAndDelete() }
+            Button("やめる", role: .cancel) {}
         }
         .toolbarVisibility(.hidden, for: .navigationBar)
-        .overlay(alignment: .topLeading) {
+        .statusBarHidden(false)
+    }
+
+    private var currentTicket: Ticket? {
+        store.tickets.first(where: { $0.id == pageID })
+    }
+
+    // MARK: Chrome
+
+    private var chrome: some View {
+        HStack {
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color(hex: 0xBCB3A8))
+                    .foregroundStyle(Stage.softText)
                     .frame(width: 40, height: 40)
             }
             .glassEffect(.regular, in: .circle)
-            .padding(.leading, 20)
-            .padding(.top, 8)
-        }
-    }
+            .accessibilityIdentifier("stage-close")
 
-    private var factsGrid: some View {
-        VStack(spacing: 0) {
-            factRow("種別", ticket.kind.label)
-            factRow("会社", ticket.brand.displayName)
-            if let train = ticket.trainName { factRow("列車", train) }
-            if let seat = ticket.seat { factRow("座席", seat) }
-            if let price = ticket.price { factRow("運賃", Editorial.yen(price)) }
-        }
-    }
+            Spacer()
 
-    private func factRow(_ label: String, _ value: String) -> some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(label)
-                    .font(Typo.gothic(11))
-                    .tracking(2)
-                    .foregroundStyle(Color(hex: 0x847B70))
-                Spacer()
-                Text(value)
-                    .font(Typo.gothic(13))
-                    .foregroundStyle(Color(hex: 0xD8CFC2))
+            if let ticket = currentTicket {
+                Menu {
+                    Button {
+                        showEdit = true
+                    } label: {
+                        Label("編集", systemImage: "pencil")
+                    }
+                    ShareLink(
+                        item: TicketShareCard(ticket: ticket),
+                        preview: SharePreview("きっぷ — \(ticket.routeText)")
+                    ) {
+                        Label("共有", systemImage: "square.and.arrow.up")
+                    }
+                    Button(role: .destructive) {
+                        confirmDelete = true
+                    } label: {
+                        Label("手放す", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Stage.softText)
+                        .frame(width: 40, height: 40)
+                }
+                .glassEffect(.regular, in: .circle)
+                .accessibilityIdentifier("stage-menu")
             }
-            .padding(.vertical, 13)
-            Rectangle()
-                .fill(Color(hex: 0x2B261F))
-                .frame(height: 1)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    // MARK: Gestures
+
+    private var pinchToClose: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                let m = value.magnification
+                if m < 1 {
+                    pinchScale = max(0.82, 0.82 + 0.18 * m)
+                }
+            }
+            .onEnded { value in
+                if value.magnification < 0.72 {
+                    Haptic.play(.tick)
+                    dismiss()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.3)) {
+                        pinchScale = 1
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.36, dampingFraction: 0.7)) {
+                        pinchScale = 1
+                    }
+                }
+            }
+    }
+
+    // MARK: Delete
+
+    private func dissolveAndDelete() {
+        guard let ticket = currentTicket else { return }
+        Haptic.play(.stamp)
+        let neighbors = store.tickets
+        let index = neighbors.firstIndex(where: { $0.id == ticket.id }) ?? 0
+        let next = neighbors.indices.contains(index + 1) ? neighbors[index + 1]
+            : (index > 0 ? neighbors[index - 1] : nil)
+
+        withAnimation(.easeIn(duration: 0.85)) {
+            dissolveProgress = 1
+        } completion: {
+            store.remove(ticket)
+            dissolveProgress = 0
+            if let next {
+                pageID = next.id
+                selection = next
+            } else {
+                dismiss()
+            }
         }
     }
 }
 
-#Preview {
-    TicketStageView(ticket: Ticket.samples[1])
+/// Stage-only colors (the studio is always night).
+enum Stage {
+    static let text = Color(hex: 0xEDE6DA)
+    static let softText = Color(hex: 0xBCB3A8)
+    static let faintText = Color(hex: 0x847B70)
+    static let rule = Color(hex: 0x2B261F)
 }
