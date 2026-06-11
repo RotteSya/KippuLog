@@ -7,10 +7,14 @@ ticket gate.
 
 ## Principles
 
-1. **Tickets are objects, not photos.** The app *reads* a captured ticket
-   and re-sets it as an idealized plate in a single consistent style —
-   like a museum catalogue re-photographing every exhibit under the same
-   lights. Original photos are kept on the back of the plate.
+1. **Show the real ticket, framed like a catalogue.** The hero everywhere
+   is the user's own photographed 切符 — matted on paper, tight-cropped,
+   under one consistent studio light (`TicketCard` → `MattedPhoto`). The
+   app *reads* the ticket to fill in the journey (route, date, fare), but
+   it never replaces the photo with a synthetic drawing. The rendered
+   plate (`TicketArtView`) survives only as the fallback for tickets with
+   no photo — the sample collection and manual entries — wearing the
+   identical `studioFrame` so plate and photo sit side by side as one shoot.
 2. **One accent.** 朱 (vermilion, `#D8401F`) appears only where the app
    acts: the punch button, live markers, the era stamp. Everything else is
    paper and sumi ink.
@@ -48,9 +52,18 @@ over cream paper, like real security patterns.
 - **Editorial figures & latin captions:** New York (`.serif`) for numbers,
   SF tracked caps for captions ("JUNE 2026").
 
-## The studio system (TicketArt)
+## The studio system (TicketCard)
 
-Every ticket renders from data — never from the photo — via one renderer:
+`TicketCard` is the one way a ticket appears as an object. A captured
+ticket shows its **real photo**, matted (`MattedPhoto`): tight on a thin
+paper border that matches the plate stock, hairline edge, clamped to its
+natural aspect so a panorama or tall crop can't break the page. A ticket
+with no photo falls back to the rendered plate below. Both wear the same
+`studioFrame`.
+
+### The fallback plate (TicketArt)
+
+Rendered purely from data — used only when there is no photo:
 
 - **MARS plate** (85 × 57.5 ratio): brand lattice over cream, top title
   row, large station route line, date/train/seat rows, fare, bottom serial
@@ -78,13 +91,14 @@ Every ticket renders from data — never from the photo — via one renderer:
 
 | Moment | Treatment |
 |---|---|
-| timeline → detail | zoom transition; the ticket settles under the lamp (seeded ±2° → 0) |
-| detail browse | horizontal paging, tickets swap with bouncy springs |
-| detail dismiss | pinch-out or drag; ticket returns to its shelf |
+| timeline → detail | zoom transition; the photo settles under the lamp |
+| detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
+| detail browse | horizontal paging, cards swap with bouncy springs |
+| detail dismiss | pinch-out or drag; card returns to its shelf |
 | capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket leans back, feeds, squishes, gets bitten |
-| OCR | scan-sweep shader; fields stamp in one-by-one (はんこ) |
+| reveal | the punched scan settles into its studio mat; the form-desk rises |
 | delete | ink dissolve shader — the ticket scatters to sumi dust |
-| scroll | subtle parallax + light sweep across plates |
+| scroll | subtle parallax + light sweep across cards |
 
 ## Haptics
 

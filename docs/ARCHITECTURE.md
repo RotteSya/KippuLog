@@ -8,15 +8,18 @@ the main actor explicitly.
 
 ```
 photo (camera / library / drop)
-   → TicketRecognizer (Vision OCR, ja-JP, off-main)
-   → TicketParse (stations, date, price, train, seat, kind, brand)
+   → TicketRecognizer.flatten + recognizeLines  (Vision OCR + boxes, off-main)
+   → RouteDetector (geometry + StationIndex gazetteer) → 発駅/着駅
+   → TicketTextParser (date, price, train, seat, kind, brand)
    → confirm sheet (user edits)
-   → TicketStore.add(ticket, photo)
+   → TicketStore.add(ticket, photo)  (computes photoAspect)
    → tickets.json + photos/<uuid>.jpg   (Application Support/KippuLog)
 ```
 
-`TicketArtView` renders purely from `Ticket` fields — art is never stored,
-always re-drawn (resolution-independent, theme-proof, shader-friendly).
+The **real photo is the object** the app shows (`TicketCard` →
+`MattedPhoto`). `TicketArtView` is the data-drawn *fallback* for tickets
+with no photo (samples, manual entry); art is never stored, always
+re-drawn. Both share `studioFrame`.
 
 ## Modules
 
@@ -27,17 +30,20 @@ always re-drawn (resolution-independent, theme-proof, shader-friendly).
   photo directory. Sorted newest-first; `monthGroups` powers the
   timeline. Launch args: `-uiTestReset` wipes, `-uiTestSeedSamples`
   seeds 8 sample journeys.
-- **TicketArt** — pure-SwiftUI plate renderer + studio presentation
-  (shadow, rotation, grain/holo shaders).
+- **TicketArt** — `TicketCard`/`TicketCardContent` (photo or fallback) +
+  `MattedPhoto`, the shared `studioFrame`, and the data-drawn plate
+  renderer (grain/holo/letterpress shaders).
 - **Features/Timeline** — magazine scroll, month sections, glass bottom
   bar, empty state.
-- **Features/Detail** — studio stage, tilt + flip, paging, edit, share,
-  delete.
+- **Features/Detail** — studio stage (photo hero, tilt + reflection),
+  paging, edit, share, delete.
 - **Features/Capture** — AVFoundation camera with rectangle detection +
   perspective crop, library import fallback, gate animation, confirm
-  sheet.
-- **Features/Recognition** — `TicketRecognizer` (Vision) +
-  `TicketTextParser` (regex heuristics for Japanese ticket text).
+  (mat-settle reveal + form).
+- **Features/Recognition** — `TicketRecognizer` (Vision OCR + boxes,
+  quad/flatten), `RouteDetector` (geometry + gazetteer station pairing),
+  `StationIndex` (bundled `Resources/stations.json`, exact + edit-distance-1
+  snap), `TicketTextParser` (date/price/train/seat/kind/brand).
 - **Shaders** — `Tickets.metal`: paperGrain, holoSheen, scanSweep,
   inkDissolve, gateSquish.
 

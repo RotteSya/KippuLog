@@ -2,6 +2,35 @@
 
 Running build log. Newest first.
 
+## 2026-06-12 — photo-first + OCR accuracy
+
+The rendered plate looked wrong whenever OCR missed, and the user's real
+ticket was hidden. Pivoted: **the photographed ticket is now the hero**;
+the plate is a fallback. Route parsing rebuilt on geometry + a station
+dictionary.
+
+- [x] Station gazetteer: `scripts/build_stations.swift` distills
+      piuccio/open-data-jp-railway-stations → `Resources/stations.json`
+      (8,460 names, 126 KB, no runtime network). `StationIndex` loads it
+      lazily; `snap()` = exact + edit-distance-1 (柬京→東京), strips 駅,
+      accepts 市内/区内 fare zones, exact-only for 1-char.
+- [x] `TicketRecognizer.recognizeLines` returns `OCRLine` (text + box);
+      quad detection widened. `RouteDetector`: same-line separators
+      (expanded), から…まで, whitespace pair, same horizontal band,
+      stacked lines — each candidate gazetteer-validated; katakana ー /
+      table bars guarded. Parser delegates the route branch.
+- [x] `TicketCard`/`TicketCardContent` + `MattedPhoto`: the real photo on
+      a paper mat, clamped natural aspect, shared `StudioFrame`
+      (extracted from `TicketPlate`). `photoAspect` persisted on `Ticket`.
+- [x] Timeline / stage / edit / share / confirm swapped to the card.
+      Stage flip-to-art removed (hero is the photo); confirm reveal is a
+      scan→mat settle; `TicketBackFace` deleted.
+- [x] 21 tests green incl. 2 real-Vision-OCR integration tests (render
+      plate → OCR → assert route) + geometry/snap unit cases. Verified in
+      sim: confirm fields all correct (東京/新大阪/¥14,720/のぞみ31号),
+      photo card in timeline beside sample plates, photo hero on stage,
+      light + dark.
+
 ## 2026-06-11 — design elevation pass
 
 - [x] Plate v2: `ticketPaper` single-pass paper physics (guilloche

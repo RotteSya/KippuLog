@@ -46,12 +46,18 @@ KippuLog/
 │   ├── Design/     palette, typography, haptics
 │   ├── Models/     Ticket, TicketKind, RailBrand, SeededRandom
 │   └── Store/      TicketStore (JSON + photo files), samples
-├── TicketArt/      the studio renderer (MARS + edmondson plates)
+├── TicketArt/      TicketCard (matted photo) + studioFrame + fallback plate
 ├── Features/
 │   ├── Timeline/   magazine timeline
 │   ├── Detail/     single-ticket stage
 │   ├── Capture/    camera, gate animation, confirm sheet
-│   └── Recognition/ Vision OCR + Japanese ticket parser
+│   └── Recognition/ Vision OCR + RouteDetector + StationIndex + parser
 ├── Components/     shared custom controls
+├── Resources/      stations.json (bundled gazetteer)
 └── Shaders/        Metal: grain, holo sheen, scan, ink dissolve
 ```
+
+The hero everywhere is the **real photographed ticket** (matted, studio-lit);
+the data-drawn plate is the fallback for tickets without a photo. Route
+detection uses OCR geometry + a bundled station gazetteer — see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
