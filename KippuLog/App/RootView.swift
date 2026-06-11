@@ -12,23 +12,7 @@ struct RootView: View {
         case .hero:
             ArtHeroView()
         case nil:
-            placeholder
-        }
-    }
-
-    private var placeholder: some View {
-        ZStack {
-            Ink.background.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text("きっぷログ")
-                    .font(Typo.mincho(34))
-                    .tracking(6)
-                    .foregroundStyle(Ink.text)
-                Text("旅の切符を、一冊に。")
-                    .font(Typo.gothic(13))
-                    .tracking(2)
-                    .foregroundStyle(Ink.textSoft)
-            }
+            TimelineView()
         }
     }
 }
