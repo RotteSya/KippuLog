@@ -134,6 +134,7 @@ struct TimelineView: View {
                 }
             }
             .foregroundStyle(Ink.text)
+            .accessibilityRepresentation { Text("きっぷログ") }
             .overlay(alignment: .trailing) {
                 HankoSeal(size: 16)
                     .offset(x: 34, y: -2)
