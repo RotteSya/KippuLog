@@ -9,6 +9,9 @@ struct CaptureFlowView: View {
     @Environment(TicketStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
+    /// Image handed in from drag & drop — skips straight to the gate.
+    var initialImage: UIImage?
+
     @State private var camera = CameraService()
     @State private var phase = Phase.gathering
     @State private var pickerItem: PhotosPickerItem?
@@ -65,6 +68,10 @@ struct CaptureFlowView: View {
             }
         }
         .task {
+            if let initialImage {
+                await acquired(initialImage)
+                return
+            }
             await camera.start()
             #if DEBUG
             autoImportForUITests()

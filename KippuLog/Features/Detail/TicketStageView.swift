@@ -60,7 +60,7 @@ struct TicketStageView: View {
             Button("やめる", role: .cancel) {}
         }
         .toolbarVisibility(.hidden, for: .navigationBar)
-        .statusBarHidden(false)
+        .statusBarHidden(true)
     }
 
     private var currentTicket: Ticket? {

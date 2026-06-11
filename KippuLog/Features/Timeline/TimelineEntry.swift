@@ -18,6 +18,11 @@ struct TimelineEntry: View {
                 .scrollTransition(.interactive) { content, phase in
                     content
                         .offset(y: phase.value * -14)
+                        .rotation3DEffect(
+                            .degrees(phase.value * 2.4),
+                            axis: (x: 1, y: 0, z: 0),
+                            perspective: 0.4
+                        )
                         .opacity(phase.isIdentity ? 1 : 0.65)
                 }
                 .onChange(of: highlighted) { _, isOn in

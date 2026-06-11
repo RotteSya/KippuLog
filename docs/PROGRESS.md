@@ -12,12 +12,20 @@ Running build log. Newest first.
       lattice tints), `SeededRandom`.
 - [x] Store: JSON + photo-file persistence, month grouping, UI-test hooks,
       8 sample journeys (2025-08 → 2026-06).
-- [ ] TicketArt studio renderer
-- [ ] Magazine timeline
-- [ ] Detail stage (tilt, flip, paging, pinch-dismiss)
-- [ ] Capture + gate animation + OCR parse + confirm sheet
-- [ ] Shaders: grain, holo, scan, ink dissolve, gate squish
-- [ ] App icon, polish, full simulator verification
+- [x] TicketArt studio renderer (MARS + edmondson, lattice, punch,
+      print typography) — verified at hero/catalog sizes.
+- [x] Magazine timeline — global alternating rhythm, scroll parallax +
+      paper tilt, month headers, colophon, empty state, light-sweep
+      highlight for fresh tickets, drag & drop import.
+- [x] Studio stage — zoom transition, tilt + holo sheen, flip to photo
+      (見本 stamp for samples), paging w/ zoom-source handoff, pinch
+      dismiss, memo editing, edit sheet, share card, ink-dissolve delete.
+- [x] Capture — camera service (live quad, auto-capture), guide overlay,
+      perspective flatten, 改札 gate ceremony (squish shader + punch
+      haptic), ja-JP OCR + parser (9 unit tests), reveal flip, confirm.
+- [x] Shaders: paperGrain, holoSheen, scanSweep, inkDissolve, gateSquish.
+- [x] App icon (scripts/generate_icon.swift), launch fade-in.
+- [ ] Final verification sweep (full test suite, dark mode, edge cases)
 
 ### Decisions
 

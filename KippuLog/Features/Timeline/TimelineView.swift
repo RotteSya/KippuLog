@@ -9,6 +9,8 @@ struct TimelineView: View {
     @State private var selectedTicket: Ticket?
     @State private var showCapture = false
     @State private var highlightID: UUID?
+    @State private var droppedImage: UIImage?
+    @State private var arrived = false
 
     var body: some View {
         NavigationStack {
@@ -18,6 +20,20 @@ struct TimelineView: View {
                 } else {
                     magazine
                 }
+            }
+            .opacity(arrived ? 1 : 0)
+            .offset(y: arrived ? 0 : 16)
+            .onAppear {
+                withAnimation(.spring(response: 0.85, dampingFraction: 0.92).delay(0.06)) {
+                    arrived = true
+                }
+            }
+            .dropDestination(for: Data.self) { items, _ in
+                guard let data = items.first, let image = UIImage(data: data) else { return false }
+                Haptic.play(.tick)
+                droppedImage = image
+                showCapture = true
+                return true
             }
             .background(Ink.background)
             .toolbarVisibility(.hidden, for: .navigationBar)
@@ -39,8 +55,8 @@ struct TimelineView: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
-        .fullScreenCover(isPresented: $showCapture) {
-            CaptureFlowView()
+        .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
+            CaptureFlowView(initialImage: droppedImage)
         }
     }
 
