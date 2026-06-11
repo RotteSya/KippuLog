@@ -1,0 +1,54 @@
+import XCTest
+
+/// End-to-end capture: punch button → auto-import a synthetic ticket
+/// photo → gate ceremony → OCR/parse → confirm → save → shelf.
+final class CaptureWalkTests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    @MainActor
+    func testCaptureImportToShelf() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTestReset", "-uiTestSeedSamples",
+            "-uiTestImport", "/tmp/kippu_test_ticket.png",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["きっぷログ"].waitForExistence(timeout: 10))
+
+        // Open the gate.
+        app.buttons["punch-button"].firstMatch.tap()
+
+        // Gate ceremony plays (~3s) — catch it mid-pass.
+        usleep(1_400_000)
+        shot(app, "20-gate-pass")
+
+        // Confirm sheet: parsed plate + fields.
+        let save = app.buttons["confirm-save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 12))
+        sleep(2)
+        shot(app, "21-confirm")
+
+        // The parser must have read the synthetic ticket.
+        XCTAssertTrue(app.staticTexts["新大阪"].firstMatch.exists
+                      || app.textFields.matching(NSPredicate(format: "value CONTAINS '新大阪'")).count > 0)
+
+        save.tap()
+
+        // Back on the shelf — the new journey is in the magazine.
+        let entry = app.staticTexts["東京 → 新大阪"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 8))
+        sleep(2)
+        shot(app, "22-timeline-with-new")
+    }
+
+    @MainActor
+    private func shot(_ app: XCUIApplication, _ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}

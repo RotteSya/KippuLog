@@ -8,6 +8,8 @@ final class TicketStore {
     /// Newest journey first.
     private(set) var tickets: [Ticket] = []
     private(set) var isLoaded = false
+    /// Transient: the ticket just punched in (drives the shelf highlight).
+    private(set) var lastAddedID: UUID?
 
     private let directory: URL
     private let photosDirectory: URL
@@ -40,6 +42,7 @@ final class TicketStore {
         }
         tickets.append(ticket)
         sortAndSave()
+        lastAddedID = ticket.id
     }
 
     func update(_ ticket: Ticket) {

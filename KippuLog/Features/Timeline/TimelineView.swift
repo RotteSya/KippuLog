@@ -8,6 +8,7 @@ struct TimelineView: View {
     @Namespace private var zoomNamespace
     @State private var selectedTicket: Ticket?
     @State private var showCapture = false
+    @State private var highlightID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -71,6 +72,21 @@ struct TimelineView: View {
                 guard old != nil, let new else { return }
                 proxy.scrollTo(new.id, anchor: .center)
             }
+            .onChange(of: store.lastAddedID) { _, new in
+                // A fresh ticket just punched in — walk to it and let the
+                // studio light sweep across the plate.
+                guard let new else { return }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(450))
+                    withAnimation(.spring(response: 0.7, dampingFraction: 0.9)) {
+                        proxy.scrollTo(new, anchor: .center)
+                    }
+                    try? await Task.sleep(for: .milliseconds(650))
+                    highlightID = new
+                    try? await Task.sleep(for: .milliseconds(1400))
+                    highlightID = nil
+                }
+            }
         }
     }
 
@@ -112,7 +128,8 @@ struct TimelineView: View {
             ForEach(Array(group.tickets.enumerated()), id: \.element.id) { index, ticket in
                 TimelineEntry(
                     ticket: ticket,
-                    alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing
+                    alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
+                    highlighted: highlightID == ticket.id
                 )
                 .matchedTransitionSource(id: ticket.id, in: zoomNamespace)
                 .onTapGesture {

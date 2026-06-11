@@ -6,15 +6,26 @@ import SwiftUI
 struct TimelineEntry: View {
     let ticket: Ticket
     var alignment: HorizontalAlignment = .leading
+    var highlighted = false
+
+    @State private var sweep: Double = -0.25
 
     var body: some View {
         VStack(alignment: alignment, spacing: 18) {
             TicketPlate(ticket: ticket)
+                .lightSweep(progress: sweep)
                 .frame(maxWidth: plateWidth)
                 .scrollTransition(.interactive) { content, phase in
                     content
                         .offset(y: phase.value * -14)
                         .opacity(phase.isIdentity ? 1 : 0.65)
+                }
+                .onChange(of: highlighted) { _, isOn in
+                    guard isOn else { return }
+                    sweep = -0.25
+                    withAnimation(.easeInOut(duration: 1.1)) {
+                        sweep = 1.25
+                    }
                 }
 
             VStack(alignment: alignment, spacing: 7) {
