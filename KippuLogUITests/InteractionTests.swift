@@ -30,7 +30,7 @@ final class InteractionTests: XCTestCase {
     @MainActor
     func testMemoEditing() throws {
         let app = launchWithSamples()
-        app.staticTexts["札幌 → 小樽"].firstMatch.tap()
+        scrollToEntry(app, "札幌 → 小樽").tap()
 
         let memo = app.textViews["memo-field"].firstMatch
         let memoField = memo.exists ? memo : app.textFields["memo-field"].firstMatch

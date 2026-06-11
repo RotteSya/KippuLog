@@ -2,6 +2,24 @@
 
 Running build log. Newest first.
 
+## 2026-06-11 — design elevation pass
+
+- [x] Plate v2: `ticketPaper` single-pass paper physics (guilloche
+      underprint, mottle, fibres, edge darkening), `inkPress`
+      letterpress relief, watermark marks, crescent hole relief, MARS
+      arrow redrawn. All decorative gradients deleted.
+- [x] Timeline v2: hanko masthead + thick-thin rules, kanji month
+      headers with shu tick + 枚数, chronological catalogue numbers,
+      baseline-aligned route/fare, custom punch-glyph button, blank
+      guilloche stock empty state.
+- [x] Stage v2: `studioLight` dithered light pool, table reflection,
+      facts re-set as perforated 半券 stub (shares the plate's serial),
+      旅の記 memo block, settle-in & cardstock flip dip.
+- [x] Capture v2: machined reader head with marching chevrons, lean-in
+      feed, studio-lit reveal over a rising paper desk, 判子 kind
+      stamps, dotted printed-form rules.
+- [x] Full suite re-verified green (9 unit + 8 UI); light/dark sweeps.
+
 ## 2026-06-11
 
 - [x] Scaffold: hand-written pbxproj (objectVersion 77, synchronized

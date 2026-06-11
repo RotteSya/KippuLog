@@ -57,21 +57,31 @@ Every ticket renders from data — never from the photo — via one renderer:
   + issuing box. Square-ish corners (1mm).
 - **Edmondson plate** (57.5 × 30.5) for 入場券: buff card, centered
   station, fare boxed, red serial.
-- **Deterministic quirks** from `styleSeed`: serial numbers, lattice
+- **Deterministic quirks** from `styleSeed`: serial numbers, guilloche
   phase, punch-hole position jitter — every ticket individually printed,
   identically styled.
-- **Studio presentation:** identical soft top-left key light (shadow
-  system), slight seeded rotation (±2°) as if laid on the table, paper
-  grain + holo sheen shaders on top.
+- **Paper physics (`ticketPaper` shader, one pass):** pulp-density
+  mottle, tooth speckle, grain-axis fibre flecks, a braided
+  counter-phase sine guilloche underprint in the operator's tint, and
+  cut-edge darkening. No overlay gradients anywhere.
+- **Letterpress (`inkPress` layerEffect):** every glyph's leading edge
+  pools a hair darker, its trailing edge catches a hairline of light —
+  the print sits *in* the paper.
+- **Studio presentation:** contact + ambient key shadows (one elevation
+  system), seeded resting rotation, gloss-first `holoSheen` that answers
+  tilt with spectral fringes only at strong angles.
+- **The dark room (`studioLight`):** a dithered warm pool of light —
+  never flat black, never banded. Hero tickets cast a faint table
+  reflection that fades as they lift.
 
 ## Motion vocabulary
 
 | Moment | Treatment |
 |---|---|
-| timeline → detail | zoom transition; room dims to studio black |
+| timeline → detail | zoom transition; the ticket settles under the lamp (seeded ±2° → 0) |
 | detail browse | horizontal paging, tickets swap with bouncy springs |
 | detail dismiss | pinch-out or drag; ticket returns to its shelf |
-| capture | 改札 gate: ticket slides through slot, punch haptic, hole appears |
+| capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket leans back, feeds, squishes, gets bitten |
 | OCR | scan-sweep shader; fields stamp in one-by-one (はんこ) |
 | delete | ink dissolve shader — the ticket scatters to sumi dust |
 | scroll | subtle parallax + light sweep across plates |
