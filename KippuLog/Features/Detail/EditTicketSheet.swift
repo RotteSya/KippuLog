@@ -15,7 +15,7 @@ struct EditTicketSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 28) {
-                    TicketPlate(ticket: draft, lying: false)
+                    TicketCard(ticket: draft, lying: false)
                         .frame(maxWidth: draft.kind.isEdmondson ? 230 : 280)
                         .padding(.top, 24)
                         .animation(.spring(response: 0.45, dampingFraction: 0.8), value: draft)

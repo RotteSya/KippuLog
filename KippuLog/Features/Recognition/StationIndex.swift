@@ -44,6 +44,9 @@ nonisolated final class StationIndex: Sendable {
         guard (1...12).contains(cleaned.count) else { return nil }
         if Self.isZoneLabel(cleaned) { return cleaned }
         if exact.contains(cleaned) { return cleaned }
+        // A single character has too many edit-distance-1 neighbours to snap
+        // safely (場 → 馬場, 券 → …); require an exact hit for length 1.
+        guard cleaned.count >= 2 else { return nil }
 
         let target = Array(cleaned)
         var best: String?

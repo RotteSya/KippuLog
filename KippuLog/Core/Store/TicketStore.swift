@@ -39,6 +39,9 @@ final class TicketStore {
         var ticket = ticket
         if let photo {
             ticket.photoFileName = savePhoto(photo, id: ticket.id)
+            if photo.size.height > 0 {
+                ticket.photoAspect = photo.size.width / photo.size.height
+            }
         }
         tickets.append(ticket)
         sortAndSave()

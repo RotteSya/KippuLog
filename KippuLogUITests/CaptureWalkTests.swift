@@ -34,11 +34,18 @@ final class CaptureWalkTests: XCTestCase {
 
         save.tap()
 
-        // Back on the shelf — the new journey is in the magazine.
+        // Back on the shelf — the new journey is in the magazine, shown as
+        // the real photographed ticket (a matted card, not a rendered plate).
         let entry = app.staticTexts["東京 → 新大阪"].firstMatch
         XCTAssertTrue(entry.waitForExistence(timeout: 8))
         sleep(2)
         shot(app, "22-timeline-with-new")
+
+        // Open its stage — the hero is the real photo.
+        entry.tap()
+        XCTAssertTrue(app.otherElements["stage-hero"].firstMatch.waitForExistence(timeout: 6))
+        sleep(2)
+        shot(app, "23-stage-photo-hero")
     }
 
     @MainActor

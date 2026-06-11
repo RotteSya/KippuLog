@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// The reveal — the raw scan flips into the understood plate under the
-/// studio lamp, while a paper desk rises from below carrying the form.
+/// The reveal — the punched scan settles into its studio mat under the
+/// lamp, then a paper desk rises from below carrying the form.
 struct ConfirmTicketView: View {
     let scan: UIImage
     @Binding var draft: Ticket
     var onSave: () -> Void
     var onRetake: () -> Void
 
-    @State private var revealAngle: Double = 0
+    @State private var framed = false
     @State private var deskRaised = false
 
     var body: some View {
@@ -31,25 +31,23 @@ struct ConfirmTicketView: View {
 
     private var reveal: some View {
         ZStack {
-            // Raw scan (front until the flip passes 90°).
+            // The bare scan, briefly, before the mat closes around it.
             Image(uiImage: scan)
                 .resizable()
-                .scaledToFill()
-                .frame(maxWidth: 300)
-                .aspectRatio(MarsTicketFace.aspect, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .opacity(revealAngle < 90 ? 1 : 0)
-
-            // The understood plate (back face, pre-rotated).
-            TicketPlate(ticket: draft, lying: false)
+                .scaledToFit()
                 .frame(maxWidth: draft.kind.isEdmondson ? 240 : 300)
-                .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
-                .opacity(revealAngle >= 90 ? 1 : 0)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .shadow(color: .black.opacity(0.5), radius: 20, y: 14)
+                .opacity(framed ? 0 : 1)
+                .scaleEffect(framed ? 1.05 : 1)
+
+            // The framed studio card — the real ticket, matted.
+            TicketCardContent(ticket: draft, photo: scan, lying: false)
+                .frame(maxWidth: draft.kind.isEdmondson ? 240 : 300)
+                .opacity(framed ? 1 : 0)
+                .scaleEffect(framed ? 1 : 0.95)
+                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: draft)
         }
-        .rotation3DEffect(.degrees(revealAngle), axis: (x: 0, y: 1, z: 0), perspective: 0.45)
-        .scaleEffect(1 - 0.03 * abs(sin(revealAngle * .pi / 180)))
-        .shadow(color: .black.opacity(0.5), radius: 20, y: 14)
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: draft)
         .padding(.horizontal, 30)
     }
 
@@ -120,13 +118,13 @@ struct ConfirmTicketView: View {
     // MARK: Choreography
 
     private func choreograph() async {
-        guard revealAngle == 0 else { return }
-        try? await Task.sleep(for: .milliseconds(320))
+        guard !framed else { return }
+        try? await Task.sleep(for: .milliseconds(340))
         Haptic.play(.stamp)
-        withAnimation(.spring(response: 0.75, dampingFraction: 0.78)) {
-            revealAngle = 180
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) {
+            framed = true
         }
-        try? await Task.sleep(for: .milliseconds(380))
+        try? await Task.sleep(for: .milliseconds(360))
         withAnimation(.spring(response: 0.6, dampingFraction: 0.84)) {
             deskRaised = true
         }

@@ -26,6 +26,9 @@ nonisolated struct Ticket: Identifiable, Codable, Equatable, Hashable {
     var styleSeed: UInt64 = .random(in: UInt64.min ... UInt64.max)
     /// Original capture, stored next to the JSON.
     var photoFileName: String?
+    /// Aspect ratio (width / height) of the saved photo, so cards lay out
+    /// without loading the image. Nil for samples / manual entries.
+    var photoAspect: CGFloat?
     var isSample = false
 
     /// 東京 → 京都, or just 尾道 for an entrance ticket.

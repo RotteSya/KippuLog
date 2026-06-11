@@ -33,6 +33,11 @@ nonisolated enum RouteDetector {
         if let pair = splitOnLine(norm, separators: weakSeparators, requireStrong: true, index: index) {
             return pair
         }
+        // 1d. One line, two space-separated stations (arrow was a vector
+        //     mark or a blank gap that OCR collapsed to whitespace).
+        if let pair = splitOnWhitespace(norm, index: index) {
+            return pair
+        }
         // 2. Two station tokens sharing a horizontal band (arrow lost).
         if let pair = sameBand(norm, index: index) {
             return pair
@@ -70,6 +75,24 @@ nonisolated enum RouteDetector {
                       let to = resolve(parts[1], requireStrong: requireStrong, index: index),
                       from != to else { continue }
                 return (from, to)
+            }
+        }
+        return nil
+    }
+
+    /// Two real stations on one line, separated only by whitespace.
+    private static func splitOnWhitespace(_ lines: [OCRLine], index: StationIndex) -> (String, String)? {
+        for line in lines {
+            let tokens = line.text
+                .split(whereSeparator: { $0 == " " || $0 == "\u{3000}" })
+                .map(String.init)
+            guard tokens.count >= 2 else { continue }
+            let strong = tokens.compactMap { token -> String? in
+                guard let s = index.snap(token), !isKeyword(s) else { return nil }
+                return s
+            }
+            if strong.count == 2, strong[0] != strong[1] {
+                return (strong[0], strong[1])
             }
         }
         return nil

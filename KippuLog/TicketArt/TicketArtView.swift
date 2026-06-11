@@ -19,24 +19,44 @@ struct TicketArtView: View {
     }
 }
 
-/// Studio presentation: identical key light (paired shadows) and a
-/// seeded "laid on the table" rotation. Every plate in the magazine
-/// is photographed under the same lamp.
-struct TicketPlate: View {
-    let ticket: Ticket
-    /// Disable for the hero stage, where the ticket stands upright.
+/// Studio presentation applied identically to every object in the
+/// collection — the real photo *and* the rendered fallback plate — so the
+/// whole magazine reads as one shoot under one lamp: paired key light and a
+/// seeded "laid on the table" rotation.
+struct StudioFrame: ViewModifier {
+    let seed: UInt64
+    /// Disable for the hero stage, where the object stands upright.
     var lying = true
 
-    var body: some View {
-        TicketArtView(ticket: ticket)
+    func body(content: Content) -> some View {
+        content
             .shadow(color: .black.opacity(0.10), radius: 2, y: 1.5)   // contact
             .shadow(color: .black.opacity(0.13), radius: 20, y: 11)   // ambient key
             .rotationEffect(.degrees(lying ? restingAngle : 0))
     }
 
     private var restingAngle: Double {
-        var rng = SeededRandom(ticket.styleSeed ^ 0x71E)
+        var rng = SeededRandom(seed ^ 0x71E)
         return rng.double(in: -2.1...2.1)
+    }
+}
+
+extension View {
+    /// Seat this object under the studio lamp (see `StudioFrame`).
+    func studioFrame(seed: UInt64, lying: Bool = true) -> some View {
+        modifier(StudioFrame(seed: seed, lying: lying))
+    }
+}
+
+/// The rendered plate, framed. Kept for tickets with no photo (samples /
+/// manual entry); captured tickets show their real photo via `TicketCard`.
+struct TicketPlate: View {
+    let ticket: Ticket
+    var lying = true
+
+    var body: some View {
+        TicketArtView(ticket: ticket)
+            .studioFrame(seed: ticket.styleSeed, lying: lying)
     }
 }
 

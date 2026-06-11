@@ -17,7 +17,7 @@ struct TimelineEntry: View {
                 .frame(maxWidth: plateWidth)
                 .padding(.bottom, 10)
 
-            TicketPlate(ticket: ticket)
+            TicketCard(ticket: ticket)
                 .lightSweep(progress: sweep)
                 .frame(maxWidth: plateWidth)
                 .scrollTransition(.interactive) { content, phase in

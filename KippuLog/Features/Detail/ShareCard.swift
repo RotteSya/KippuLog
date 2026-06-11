@@ -2,9 +2,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// A ticket exported as a studio print — rendered lazily when the user
-/// actually shares (Transferable keeps it off the hot path).
+/// actually shares (Transferable keeps it off the hot path). The photo is
+/// captured up front (in the stage, where the store is available) so the
+/// `ImageRenderer` needs no environment.
 struct TicketShareCard: Transferable {
     let ticket: Ticket
+    let photo: UIImage?
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .png) { card in
@@ -15,7 +18,7 @@ struct TicketShareCard: Transferable {
 
     @MainActor
     private func pngData() throws -> Data {
-        let renderer = ImageRenderer(content: ShareCardView(ticket: ticket))
+        let renderer = ImageRenderer(content: ShareCardView(ticket: ticket, photo: photo))
         renderer.scale = 2
         renderer.proposedSize = ProposedViewSize(width: 540, height: 675)
         guard let data = renderer.uiImage?.pngData() else {
@@ -25,9 +28,10 @@ struct TicketShareCard: Transferable {
     }
 }
 
-/// 4:5 studio print — plate centered, route below, quiet colophon.
+/// 4:5 studio print — the ticket centered, route below, quiet colophon.
 struct ShareCardView: View {
     let ticket: Ticket
+    var photo: UIImage?
 
     var body: some View {
         ZStack {
@@ -36,7 +40,7 @@ struct ShareCardView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                TicketPlate(ticket: ticket, lying: false)
+                TicketCardContent(ticket: ticket, photo: photo, lying: false)
                     .frame(maxWidth: ticket.kind.isEdmondson ? 360 : 430)
                     .padding(.horizontal, 48)
 
@@ -77,5 +81,5 @@ struct ShareCardView: View {
 }
 
 #Preview {
-    ShareCardView(ticket: Ticket.samples[1])
+    ShareCardView(ticket: Ticket.samples[1], photo: nil)
 }
