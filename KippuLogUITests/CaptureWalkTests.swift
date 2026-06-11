@@ -18,11 +18,8 @@ final class CaptureWalkTests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["きっぷログ"].waitForExistence(timeout: 10))
 
-        // Open the gate.
-        app.buttons["punch-button"].firstMatch.tap()
-
-        // Gate ceremony plays (~3s) — catch it mid-pass.
-        usleep(1_400_000)
+        // -uiTestImport auto-opens the gate; the ceremony plays (~3s).
+        usleep(2_100_000)
         shot(app, "20-gate-pass")
 
         // Confirm sheet: parsed plate + fields.

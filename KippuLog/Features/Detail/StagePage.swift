@@ -169,6 +169,7 @@ struct StagePage: View {
             .tint(Ink.shu)
             .focused($memoFocused)
             .lineLimit(2...8)
+            .accessibilityIdentifier("memo-field")
             .onChange(of: memoFocused) { _, focused in
                 if !focused { saveMemo(ticket) }
             }

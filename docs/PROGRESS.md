@@ -25,7 +25,11 @@ Running build log. Newest first.
       haptic), ja-JP OCR + parser (9 unit tests), reveal flip, confirm.
 - [x] Shaders: paperGrain, holoSheen, scanSweep, inkDissolve, gateSquish.
 - [x] App icon (scripts/generate_icon.swift), launch fade-in.
-- [ ] Final verification sweep (full test suite, dark mode, edge cases)
+- [x] Final verification sweep — full suite green (9 unit + 8 UI tests:
+      launch, stage walk, capture e2e with real OCR, empty state, memo,
+      edit sheet, delete dissolve, pinch dismiss, punch-button gate);
+      dark-mode gate/confirm/timeline checked by screenshot; icon on
+      home screen; persistence across launches confirmed.
 
 ### Decisions
 

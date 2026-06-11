@@ -12,10 +12,12 @@ struct TicketFormFields: View {
 
             fieldRow("発駅") {
                 stationField("駅名", text: $ticket.fromStation)
+                    .accessibilityIdentifier("field-from")
             }
             if ticket.kind != .nyujoken {
                 fieldRow("着駅") {
                     stationField("駅名", text: $ticket.toStation)
+                        .accessibilityIdentifier("field-to")
                 }
             }
             fieldRow("日付") {

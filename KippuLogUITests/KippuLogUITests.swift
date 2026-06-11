@@ -10,6 +10,7 @@ final class KippuLogUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
-        XCTAssertTrue(app.staticTexts["きっぷログ"].waitForExistence(timeout: 10))
+        // Fresh install lands on the empty-magazine invitation.
+        XCTAssertTrue(app.staticTexts["まだ切符がありません"].waitForExistence(timeout: 10))
     }
 }

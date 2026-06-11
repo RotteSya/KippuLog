@@ -14,6 +14,23 @@ xcodebuild -project KippuLog.xcodeproj -scheme KippuLog \
 - Xcode 26.5 / iOS 26.0+ / iPhone only / portrait only
 - Zero third-party dependencies: SwiftUI, Metal, Vision, AVFoundation, CoreHaptics
 
+## Dev & verification hooks (DEBUG builds)
+
+Launch arguments, usable from `simctl launch` or scheme settings:
+
+| Argument | Effect |
+|---|---|
+| `-uiTestReset` | wipe the on-disk collection |
+| `-uiTestSeedSamples` | seed 8 sample journeys |
+| `-uiScreen gallery\|gallery2\|hero` | jump straight to plate-renderer debug shelves |
+| `-uiTestImport <png path>` | auto-open the gate and feed an image through flatten → OCR → parse |
+
+App icon is generated, not drawn by hand: `swift scripts/generate_icon.swift`.
+
+Tests: `xcodebuild … test` runs parser/store unit tests (Swift Testing)
+plus XCUITest walks that screenshot every screen (export attachments via
+`xcrun xcresulttool export attachments`).
+
 ## Documents
 
 - [docs/DESIGN.md](docs/DESIGN.md) — design language: paper & ink, type, motion, the studio system

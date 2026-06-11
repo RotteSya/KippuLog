@@ -58,6 +58,15 @@ struct TimelineView: View {
         .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
             CaptureFlowView(initialImage: droppedImage)
         }
+        .task {
+            #if DEBUG
+            // `-uiTestImport` launches straight into the gate ceremony.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestImport"), !showCapture {
+                try? await Task.sleep(for: .milliseconds(700))
+                showCapture = true
+            }
+            #endif
+        }
     }
 
     // MARK: Magazine
