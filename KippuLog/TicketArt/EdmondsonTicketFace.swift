@@ -66,11 +66,12 @@ struct EdmondsonTicketFace: View {
             }
             .compositingGroup()
             .visualEffect { content, geo in
-                content.colorEffect(
-                    ShaderLibrary.paperGrain(
+                content.layerEffect(
+                    ShaderLibrary.inkPress(
                         .float2(geo.size),
-                        .float(Float(ticket.styleSeed % 977))
-                    )
+                        .float(0.18)
+                    ),
+                    maxSampleOffset: CGSize(width: 0, height: 2)
                 )
             }
             .clipShape(punchShape(w: w), style: FillStyle(eoFill: true))
@@ -82,14 +83,19 @@ struct EdmondsonTicketFace: View {
         .aspectRatio(Self.aspect, contentMode: .fit)
     }
 
+    /// Plain buff card — no underprint, just stock with a horizontal
+    /// grain (the way B-type edmondsons are cut).
     private var paper: some View {
         Rectangle()
             .fill(Ink.edmondsonBuff)
-            .overlay {
-                LinearGradient(
-                    colors: [.white.opacity(0.35), .clear, .black.opacity(0.07)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+            .visualEffect { [seed = ticket.styleSeed] content, geo in
+                content.colorEffect(
+                    ShaderLibrary.ticketPaper(
+                        .float2(geo.size),
+                        .color(Color.clear),
+                        .float(Float(seed % 9973)),
+                        .float(1)
+                    )
                 )
             }
     }

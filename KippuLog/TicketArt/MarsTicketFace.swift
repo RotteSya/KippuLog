@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The standard MARS-stock plate — 85 × 57.5 proportions, brand lattice
-/// over cream, gothic print. Every measurement scales from the width so
-/// the plate is identical at thumbnail and hero sizes.
+/// The standard MARS-stock plate — 85 × 57.5 proportions, guilloche
+/// underprint, letterpress ink. Every measurement scales from the width
+/// so the plate is identical at thumbnail and hero sizes.
 struct MarsTicketFace: View {
     let ticket: Ticket
 
@@ -15,9 +15,9 @@ struct MarsTicketFace: View {
             let margin = w * 0.055
 
             ZStack {
-                paper(w: w)
+                paper
                 LatticePattern(brand: ticket.brand, seed: ticket.styleSeed)
-                    .padding(w * 0.012)
+                    .padding(w * 0.02)
 
                 // ── Title row ─────────────────────────────────────────
                 brandMark(w: w)
@@ -58,11 +58,12 @@ struct MarsTicketFace: View {
             }
             .compositingGroup()
             .visualEffect { content, geo in
-                content.colorEffect(
-                    ShaderLibrary.paperGrain(
+                content.layerEffect(
+                    ShaderLibrary.inkPress(
                         .float2(geo.size),
-                        .float(Float(ticket.styleSeed % 977))
-                    )
+                        .float(0.16)
+                    ),
+                    maxSampleOffset: CGSize(width: 0, height: 2)
                 )
             }
             .clipShape(punchShape(w: w), style: FillStyle(eoFill: true))
@@ -70,21 +71,26 @@ struct MarsTicketFace: View {
                 punchShape(w: w)
                     .stroke(Color.black.opacity(0.10), lineWidth: 0.7)
             }
-            .overlay { holeShadow(w: w, h: h) }
+            .overlay { holeRelief(w: w, h: h) }
         }
         .aspectRatio(Self.aspect, contentMode: .fit)
     }
 
     // MARK: Pieces
 
-    private func paper(w: CGFloat) -> some View {
-        Rectangle()
-            .fill(ticket.brand.warmPaper ? Color(hex: 0xF5EDDA) : Color(hex: 0xF1ECDF))
-            .overlay {
-                LinearGradient(
-                    colors: [.white.opacity(0.26), .clear, .black.opacity(0.06)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+    private var paper: some View {
+        let base = ticket.brand.warmPaper ? Color(hex: 0xF4EDDB) : Color(hex: 0xF2EDE1)
+        let tint = Color(hex: ticket.brand.patternHex)
+        return Rectangle()
+            .fill(base)
+            .visualEffect { [seed = ticket.styleSeed] content, geo in
+                content.colorEffect(
+                    ShaderLibrary.ticketPaper(
+                        .float2(geo.size),
+                        .color(tint.opacity(0.13)),
+                        .float(Float(seed % 9973)),
+                        .float(0)
+                    )
                 )
             }
     }
@@ -110,7 +116,7 @@ struct MarsTicketFace: View {
             if !ticket.toStation.isEmpty {
                 RouteArrow()
                     .fill(Ink.ticketInk)
-                    .frame(width: w * 0.135, height: w * 0.030)
+                    .frame(width: w * 0.14, height: w * 0.034)
                 Text(ticket.toStation)
                     .font(Typo.gothic(w * 0.082, bold: true))
                     .lineLimit(1)
@@ -174,36 +180,55 @@ struct MarsTicketFace: View {
         )
     }
 
-    private func holeShadow(w: CGFloat, h: CGFloat) -> some View {
+    private func holeRelief(w: CGFloat, h: CGFloat) -> some View {
         Group {
             if let hole = punch.hole {
-                Circle()
-                    .stroke(Color.black.opacity(0.30), lineWidth: w * 0.004)
-                    .blur(radius: w * 0.003)
-                    .frame(width: w * 0.052, height: w * 0.052)
+                HoleRelief(diameter: w * 0.052)
                     .position(x: hole.x * w, y: hole.y * h)
-                    .allowsHitTesting(false)
             }
         }
     }
 }
 
-/// Long-tailed solid arrow between stations.
+/// Directional crescent shading inside a punched hole: shadow where the
+/// top light is occluded, a hairline of lit paper-edge at the bottom.
+struct HoleRelief: View {
+    let diameter: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .trim(from: 0.52, to: 0.98)
+                .stroke(Color.black.opacity(0.32), lineWidth: diameter * 0.085)
+                .blur(radius: diameter * 0.05)
+            Circle()
+                .trim(from: 0.06, to: 0.44)
+                .stroke(Color.white.opacity(0.30), lineWidth: diameter * 0.06)
+                .blur(radius: diameter * 0.04)
+        }
+        .frame(width: diameter, height: diameter)
+        .allowsHitTesting(false)
+    }
+}
+
+/// MARS route arrow — long tapered shaft, broad head, the slightest
+/// flare at the tail like the machine actually prints.
 nonisolated struct RouteArrow: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let midY = rect.midY
-        let shaft = rect.height * 0.26
-        let headLength = rect.width * 0.30
-        path.addRect(CGRect(
-            x: rect.minX,
-            y: midY - shaft / 2,
-            width: rect.width - headLength,
-            height: shaft
-        ))
-        path.move(to: CGPoint(x: rect.maxX - headLength, y: rect.minY))
+        let headLength = rect.width * 0.34
+        let shaftEnd = rect.maxX - headLength
+        let shaftHalf = rect.height * 0.155
+        let tailHalf = rect.height * 0.21
+
+        path.move(to: CGPoint(x: rect.minX, y: midY - tailHalf))
+        path.addLine(to: CGPoint(x: shaftEnd, y: midY - shaftHalf))
+        path.addLine(to: CGPoint(x: shaftEnd, y: midY - rect.height * 0.5))
         path.addLine(to: CGPoint(x: rect.maxX, y: midY))
-        path.addLine(to: CGPoint(x: rect.maxX - headLength, y: rect.maxY))
+        path.addLine(to: CGPoint(x: shaftEnd, y: midY + rect.height * 0.5))
+        path.addLine(to: CGPoint(x: shaftEnd, y: midY + shaftHalf))
+        path.addLine(to: CGPoint(x: rect.minX, y: midY + tailHalf))
         path.closeSubpath()
         return path
     }

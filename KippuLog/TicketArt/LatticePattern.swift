@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The security lattice printed across ticket stock — wavy ribbons of a
-/// tiny repeated operator mark (ＪＲＪＲＪＲ…), tinted per brand.
-/// Drawn in segments so each row undulates like the real rotogravure print.
+/// The large diagonal watermark under the guilloche — a sparse run of
+/// the operator's mark, barely there, like the JR ghost on real stock.
 struct LatticePattern: View {
     let brand: RailBrand
     let seed: UInt64
@@ -10,37 +9,28 @@ struct LatticePattern: View {
     var body: some View {
         Canvas { context, size in
             var rng = SeededRandom(seed ^ 0x1A77)
-            let phase = rng.double(in: 0 ... .pi * 2)
             let tint = Color(hex: brand.patternHex)
-
-            let rowHeight = size.height * 0.068
-            let fontSize = size.height * 0.046
-            let mark = TicketText.zenkaku(latticeMark)
-            let segmentWidth = size.width / 9
-
-            let rowCount = Int(size.height / rowHeight) + 2
-            for row in 0..<rowCount {
-                let y = CGFloat(row) * rowHeight + rowHeight * 0.4
-                let xJitter = CGFloat(rng.double(in: 0...1)) * segmentWidth
-                let resolved = context.resolve(
-                    Text(String(repeating: mark, count: 4))
-                        .font(.custom("HiraginoSans-W3", size: fontSize))
-                        .tracking(fontSize * 0.30)
-                        .foregroundStyle(tint.opacity(row.isMultiple(of: 2) ? 0.20 : 0.145))
-                )
-                var x = -segmentWidth - xJitter
-                while x < size.width + segmentWidth {
-                    let wave = sin((x / size.width) * .pi * 2.6 + phase + Double(row) * 0.9)
-                    let yOffset = wave * size.height * 0.008
-                    context.draw(resolved, at: CGPoint(x: x, y: y + yOffset), anchor: .leading)
-                    x += resolved.measure(in: size).width + fontSize * 0.4
-                }
-            }
+            let fontSize = size.height * 0.34
+            let mark = TicketText.zenkaku(watermark)
+            let resolved = context.resolve(
+                Text(String(repeating: mark + "　", count: 6))
+                    .font(.custom("HiraginoSans-W6", size: fontSize))
+                    .tracking(fontSize * 0.32)
+                    .foregroundStyle(tint.opacity(0.055))
+            )
+            let phase = CGFloat(rng.double(in: -0.5...0.5)) * fontSize
+            context.translateBy(x: size.width / 2, y: size.height / 2)
+            context.rotate(by: .degrees(-13))
+            context.draw(
+                resolved,
+                at: CGPoint(x: phase, y: 0),
+                anchor: .center
+            )
         }
         .allowsHitTesting(false)
     }
 
-    private var latticeMark: String {
+    private var watermark: String {
         switch brand {
         case .jrEast, .jrCentral, .jrWest, .jrHokkaido, .jrKyushu, .jrShikoku:
             return "JR"

@@ -29,8 +29,8 @@ struct TicketPlate: View {
 
     var body: some View {
         TicketArtView(ticket: ticket)
-            .shadow(color: .black.opacity(0.05), radius: 1.5, y: 1)
-            .shadow(color: .black.opacity(0.16), radius: 16, y: 12)
+            .shadow(color: .black.opacity(0.10), radius: 2, y: 1.5)   // contact
+            .shadow(color: .black.opacity(0.13), radius: 20, y: 11)   // ambient key
             .rotationEffect(.degrees(lying ? restingAngle : 0))
     }
 
