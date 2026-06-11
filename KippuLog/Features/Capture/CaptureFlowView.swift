@@ -25,7 +25,7 @@ struct CaptureFlowView: View {
 
     var body: some View {
         ZStack {
-            Ink.studio.ignoresSafeArea()
+            StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.42), radius: 0.95, warmth: 0.35)
 
             switch phase {
             case .gathering:
@@ -51,6 +51,7 @@ struct CaptureFlowView: View {
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: phaseKey)
+        .statusBarHidden(true)
         .overlay(alignment: .topTrailing) {
             if phase != .confirm {
                 Button {

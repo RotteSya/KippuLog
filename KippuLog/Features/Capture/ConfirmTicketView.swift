@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The reveal — the raw scan flips over into the understood, re-set
-/// plate; the journey's facts wait below, every one of them editable.
+/// The reveal — the raw scan flips into the understood plate under the
+/// studio lamp, while a paper desk rises from below carrying the form.
 struct ConfirmTicketView: View {
     let scan: UIImage
     @Binding var draft: Ticket
@@ -9,31 +9,21 @@ struct ConfirmTicketView: View {
     var onRetake: () -> Void
 
     @State private var revealAngle: Double = 0
-    @State private var fieldsShown = false
+    @State private var deskRaised = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    reveal
-                        .padding(.top, 26)
-                        .padding(.bottom, 30)
+        ZStack {
+            StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.20), radius: 0.8, warmth: 0.5)
 
-                    if fieldsShown {
-                        TicketFormFields(ticket: $draft)
-                            .padding(.horizontal, 28)
-                            .transition(.opacity.combined(with: .offset(y: 24)))
-                    }
+            VStack(spacing: 0) {
+                reveal
+                    .padding(.top, 38)
+                    .padding(.bottom, 26)
 
-                    Spacer(minLength: 24)
-                }
+                desk
+                    .offset(y: deskRaised ? 0 : 420)
             }
-            .scrollIndicators(.hidden)
-            .scrollDismissesKeyboard(.interactively)
-
-            actions
         }
-        .background(Ink.background)
         .task { await choreograph() }
     }
 
@@ -45,24 +35,56 @@ struct ConfirmTicketView: View {
             Image(uiImage: scan)
                 .resizable()
                 .scaledToFill()
-                .frame(maxWidth: 320)
+                .frame(maxWidth: 300)
                 .aspectRatio(MarsTicketFace.aspect, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .opacity(revealAngle < 90 ? 1 : 0)
 
             // The understood plate (back face, pre-rotated).
             TicketPlate(ticket: draft, lying: false)
-                .frame(maxWidth: draft.kind.isEdmondson ? 250 : 320)
+                .frame(maxWidth: draft.kind.isEdmondson ? 240 : 300)
                 .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
                 .opacity(revealAngle >= 90 ? 1 : 0)
         }
         .rotation3DEffect(.degrees(revealAngle), axis: (x: 0, y: 1, z: 0), perspective: 0.45)
+        .scaleEffect(1 - 0.03 * abs(sin(revealAngle * .pi / 180)))
+        .shadow(color: .black.opacity(0.5), radius: 20, y: 14)
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: draft)
         .padding(.horizontal, 30)
     }
 
+    // MARK: Desk
+
+    private var desk: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    Capsule()
+                        .fill(Ink.rule)
+                        .frame(width: 34, height: 4)
+                        .padding(.top, 12)
+                        .padding(.bottom, 18)
+
+                    TicketFormFields(ticket: $draft)
+                        .padding(.horizontal, 28)
+                        .padding(.bottom, 16)
+                }
+            }
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+
+            actions
+        }
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: 26, topTrailingRadius: 26)
+                .fill(Ink.background)
+                .shadow(color: .black.opacity(0.5), radius: 28, y: -6)
+                .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
     private var actions: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Button {
                 Haptic.play(.success)
                 onSave()
@@ -86,27 +108,27 @@ struct ConfirmTicketView: View {
                     .font(Typo.gothic(12))
                     .tracking(1.5)
                     .foregroundStyle(Ink.textSoft)
-                    .padding(8)
+                    .padding(6)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 28)
-        .padding(.top, 10)
-        .padding(.bottom, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 20)
     }
 
     // MARK: Choreography
 
     private func choreograph() async {
         guard revealAngle == 0 else { return }
-        try? await Task.sleep(for: .milliseconds(350))
+        try? await Task.sleep(for: .milliseconds(320))
         Haptic.play(.stamp)
         withAnimation(.spring(response: 0.75, dampingFraction: 0.78)) {
             revealAngle = 180
         }
-        try? await Task.sleep(for: .milliseconds(420))
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            fieldsShown = true
+        try? await Task.sleep(for: .milliseconds(380))
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.84)) {
+            deskRaised = true
         }
     }
 }

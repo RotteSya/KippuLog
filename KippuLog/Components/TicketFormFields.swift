@@ -78,33 +78,51 @@ struct TicketFormFields: View {
         }
     }
 
-    // MARK: Kind chips
+    // MARK: Kind stamps
 
+    /// Selection as 判子 imprints — the chosen kind is pressed in shu,
+    /// each stamp a hair off true.
     private var kindChips: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                ForEach(TicketKind.allCases) { kind in
+            HStack(spacing: 9) {
+                ForEach(Array(TicketKind.allCases.enumerated()), id: \.element) { index, kind in
                     let isOn = ticket.kind == kind
                     Button {
-                        Haptic.play(.tick)
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        Haptic.play(.stamp)
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.6)) {
                             ticket.kind = kind
                         }
                     } label: {
                         Text(kind.label)
-                            .font(Typo.gothic(12, bold: isOn))
-                            .foregroundStyle(isOn ? Color.white : Ink.textSoft)
-                            .padding(.horizontal, 14)
+                            .font(Typo.gothic(12, bold: true))
+                            .tracking(1)
+                            .foregroundStyle(isOn ? Color(hex: 0xF7F3EB) : Ink.textSoft)
+                            .padding(.horizontal, 13)
                             .padding(.vertical, 8)
                             .background {
-                                Capsule().fill(isOn ? Ink.shu : Ink.backgroundDeep)
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(isOn ? Ink.shu : .clear)
                             }
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .strokeBorder(
+                                        isOn ? Ink.shu : Ink.rule,
+                                        lineWidth: isOn ? 0 : 1
+                                    )
+                            }
+                            .rotationEffect(.degrees(isOn ? stampTilt(index) : 0))
+                            .scaleEffect(isOn ? 1.04 : 1)
                     }
                     .buttonStyle(.plain)
                 }
             }
+            .padding(.vertical, 3)
         }
         .scrollIndicators(.hidden)
+    }
+
+    private func stampTilt(_ index: Int) -> Double {
+        [-1.6, 1.2, -0.9, 1.8, -1.3, 0.8][index % 6]
     }
 
     // MARK: Rows
@@ -121,9 +139,7 @@ struct TicketFormFields: View {
                 content()
             }
             .padding(.vertical, 12)
-            Rectangle()
-                .fill(Ink.rule)
-                .frame(height: 1)
+            DottedRule()
         }
     }
 
@@ -145,5 +161,23 @@ struct TicketFormFields: View {
         .font(Typo.gothic(14))
         .multilineTextAlignment(.trailing)
         .autocorrectionDisabled()
+    }
+}
+
+/// Printed-form separator: a fine dotted rule.
+struct DottedRule: View {
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: size.height / 2))
+            path.addLine(to: CGPoint(x: size.width, y: size.height / 2))
+            context.stroke(
+                path,
+                with: .color(Ink.rule.opacity(0.9)),
+                style: StrokeStyle(lineWidth: 1, dash: [1.5, 3.5])
+            )
+        }
+        .frame(height: 1)
+        .accessibilityHidden(true)
     }
 }
