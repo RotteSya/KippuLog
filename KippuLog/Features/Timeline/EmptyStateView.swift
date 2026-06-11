@@ -8,8 +8,8 @@ struct EmptyStateView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            GhostTicket()
-                .padding(.bottom, 44)
+            BlankStock()
+                .padding(.bottom, 46)
 
             Text("まだ切符がありません")
                 .font(Typo.mincho(20))
@@ -47,20 +47,31 @@ struct EmptyStateView: View {
     }
 }
 
-/// A dashed, empty ticket outline waiting to be filled.
-private struct GhostTicket: View {
+/// Blank MARS stock — guilloche printed, nothing else yet. The first
+/// page of the collection is real paper waiting for a journey.
+private struct BlankStock: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 5)
-            .strokeBorder(
-                Ink.textFaint,
-                style: StrokeStyle(lineWidth: 1.2, dash: [7, 6])
-            )
-            .frame(width: 224, height: 224 / MarsTicketFace.aspect)
-            .overlay {
-                RouteArrow()
-                    .fill(Ink.textFaint)
-                    .frame(width: 44, height: 12)
+            .fill(Color(hex: 0xF2EDE1))
+            .visualEffect { content, geo in
+                content.colorEffect(
+                    ShaderLibrary.ticketPaper(
+                        .float2(geo.size),
+                        .color(Color(hex: 0x9AA89E).opacity(0.13)),
+                        .float(412),
+                        .float(0)
+                    )
+                )
             }
+            .frame(width: 232, height: 232 / MarsTicketFace.aspect)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .overlay {
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.10), radius: 2, y: 1.5)
+            .shadow(color: .black.opacity(0.13), radius: 20, y: 11)
+            .rotationEffect(.degrees(-2))
     }
 }
 

@@ -76,18 +76,19 @@ struct TimelineView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     masthead
-                        .padding(.top, 24)
-                        .padding(.bottom, 44)
+                        .padding(.top, 22)
+                        .padding(.bottom, 48)
 
                     let groups = store.monthGroups
                     let starts = entryStartIndices(groups)
+                    let numbers = catalogNumbers
                     ForEach(Array(groups.enumerated()), id: \.element.month) { groupIndex, group in
-                        monthSection(group, startIndex: starts[groupIndex])
+                        monthSection(group, startIndex: starts[groupIndex], numbers: numbers)
                     }
 
                     colophon
-                        .padding(.top, 36)
-                        .padding(.bottom, 120)
+                        .padding(.top, 40)
+                        .padding(.bottom, 124)
                 }
             }
             .scrollIndicators(.hidden)
@@ -115,23 +116,46 @@ struct TimelineView: View {
         }
     }
 
+    /// Chronological catalogue numbers — the oldest journey is No. 001.
+    private var catalogNumbers: [UUID: Int] {
+        let ascending = store.tickets.sorted { $0.sortDate < $1.sortDate }
+        return Dictionary(uniqueKeysWithValues: ascending.enumerated().map { ($1.id, $0 + 1) })
+    }
+
+    // MARK: Masthead
+
     private var masthead: some View {
-        VStack(spacing: 14) {
-            Text("きっぷログ")
-                .font(Typo.mincho(24))
-                .tracking(10)
-                .foregroundStyle(Ink.text)
-                .padding(.leading, 10) // optically recenter the tracked text
-            Rectangle()
-                .fill(Ink.rule)
-                .frame(width: 56, height: 1)
+        VStack(spacing: 0) {
+            // Character-spaced wordmark — truly centered, no tracking tail.
+            HStack(spacing: 9) {
+                ForEach(Array("きっぷログ".enumerated()), id: \.offset) { _, char in
+                    Text(String(char))
+                        .font(Typo.mincho(22))
+                }
+            }
+            .foregroundStyle(Ink.text)
+            .overlay(alignment: .trailing) {
+                HankoSeal(size: 16)
+                    .offset(x: 34, y: -2)
+            }
+            .padding(.bottom, 16)
+
+            // Classic thick-thin editorial rule.
+            VStack(spacing: 3) {
+                Rectangle().fill(Ink.text.opacity(0.85)).frame(height: 1.4)
+                Rectangle().fill(Ink.rule).frame(height: 0.6)
+            }
+            .padding(.bottom, 12)
+
             Text("COLLECTED JOURNEYS")
-                .font(Typo.caption(10))
-                .tracking(3.5)
+                .font(Typo.caption(9.5))
+                .tracking(3.6)
                 .foregroundStyle(Ink.textFaint)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 30)
     }
+
+    // MARK: Sections
 
     /// Running entry offsets so the left/right rhythm carries across months.
     private func entryStartIndices(_ groups: [(month: DateComponents, tickets: [Ticket])]) -> [Int] {
@@ -144,15 +168,20 @@ struct TimelineView: View {
         return starts
     }
 
-    private func monthSection(_ group: (month: DateComponents, tickets: [Ticket]), startIndex: Int) -> some View {
+    private func monthSection(
+        _ group: (month: DateComponents, tickets: [Ticket]),
+        startIndex: Int,
+        numbers: [UUID: Int]
+    ) -> some View {
         VStack(spacing: 0) {
-            monthHeader(group.month)
-                .padding(.horizontal, 28)
-                .padding(.bottom, 34)
+            monthHeader(group.month, count: group.tickets.count)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 36)
 
             ForEach(Array(group.tickets.enumerated()), id: \.element.id) { index, ticket in
                 TimelineEntry(
                     ticket: ticket,
+                    number: numbers[ticket.id] ?? 0,
                     alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
                     highlighted: highlightID == ticket.id
                 )
@@ -163,42 +192,54 @@ struct TimelineView: View {
                 }
                 .id(ticket.id)
                 .padding(.horizontal, 26)
-                .padding(.bottom, 54)
+                .padding(.bottom, 56)
             }
         }
-        .padding(.bottom, 18)
+        .padding(.bottom, 16)
     }
 
-    private func monthHeader(_ month: DateComponents) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .lastTextBaseline) {
-                Text(Editorial.kanjiMonth(month.month ?? 1))
-                    .font(Typo.mincho(34))
-                    .tracking(5)
-                    .foregroundStyle(Ink.text)
-                Spacer()
-                Text(Editorial.latinMonthYear(month))
-                    .font(Typo.caption(10))
-                    .tracking(3)
-                    .foregroundStyle(Ink.textSoft)
+    private func monthHeader(_ month: DateComponents, count: Int) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(Editorial.kanjiMonth(month.month ?? 1))
+                .font(Typo.mincho(44))
+                .tracking(4)
+                .foregroundStyle(Ink.text)
+                .padding(.bottom, 6)
+
+            Text(Editorial.latinMonthYear(month))
+                .font(Typo.caption(9))
+                .tracking(3.2)
+                .foregroundStyle(Ink.textFaint)
+                .padding(.bottom, 14)
+
+            // Branded tick + hairline; the month's count rests at the end.
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Ink.shu)
+                    .frame(width: 20, height: 2)
+                Rectangle()
+                    .fill(Ink.rule)
+                    .frame(height: 0.7)
+                Text(Editorial.kanjiCount(count))
+                    .font(Typo.gothic(10))
+                    .tracking(1)
+                    .foregroundStyle(Ink.textFaint)
+                    .padding(.leading, 10)
             }
-            Rectangle()
-                .fill(Ink.rule)
-                .frame(height: 1)
         }
     }
+
+    // MARK: Colophon
 
     private var colophon: some View {
-        VStack(spacing: 10) {
-            Rectangle()
-                .fill(Ink.rule)
-                .frame(width: 56, height: 1)
+        VStack(spacing: 12) {
+            HankoSeal(size: 15)
             Text("全 \(store.tickets.count) 枚 — \(Editorial.yen(store.totalSpent))")
                 .font(Typo.serifFigure(13, weight: .regular))
                 .foregroundStyle(Ink.textSoft)
-            Text("FIN")
-                .font(Typo.caption(9))
-                .tracking(4)
+            Text("旅はつづく")
+                .font(Typo.mincho(11, light: true))
+                .tracking(5)
                 .foregroundStyle(Ink.textFaint)
         }
         .frame(maxWidth: .infinity)

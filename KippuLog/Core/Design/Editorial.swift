@@ -39,13 +39,11 @@ enum Editorial {
         return "¥" + (formatter.string(from: NSNumber(value: amount)) ?? "\(amount)")
     }
 
-    /// The caption line under a plate: 6.7 SUN ・ はこね５３号 ・ ¥2,470
-    static func caption(for ticket: Ticket) -> String {
-        var parts: [String] = []
-        if let date = ticket.travelDate { parts.append(shortDate(date)) }
-        if let train = ticket.trainName { parts.append(train) }
-        if let price = ticket.price { parts.append(yen(price)) }
-        if parts.isEmpty { parts.append(ticket.brand.displayName) }
-        return parts.joined(separator: " ・ ")
+    /// 一枚 / 三枚 — small kanji counts for month headers.
+    static func kanjiCount(_ n: Int) -> String {
+        let kanji = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
+        guard n >= 1 else { return "" }
+        guard n <= 10 else { return "\(n)枚" }
+        return kanji[n - 1] + "枚"
     }
 }

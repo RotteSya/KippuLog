@@ -13,10 +13,9 @@ struct PunchButton: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(Ink.shu.gradient)
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(.white)
+                    .fill(Ink.shu)
+                PunchGlyph(size: 25)
+                    .offset(y: 0.5)
             }
             .frame(width: 60, height: 60)
             .contentShape(Circle())
