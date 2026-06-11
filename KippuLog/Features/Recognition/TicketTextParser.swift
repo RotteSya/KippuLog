@@ -1,12 +1,23 @@
 import Foundation
+import CoreGraphics
 
 /// Turns OCR'd Japanese ticket text into a `Ticket` draft.
 /// Heuristics tuned for MARS prints, edmondson cards and private-rail
-/// stock; everything stays editable in the confirm sheet.
+/// stock; everything stays editable in the confirm sheet. Route detection
+/// (発駅/着駅) is delegated to `RouteDetector`, which uses OCR geometry +
+/// the station gazetteer.
 nonisolated enum TicketTextParser {
+    /// String-only entry (tests, manual lines). Wraps each line as a
+    /// full-width box stacked top-to-bottom so the geometry strategies still
+    /// have something to work with.
     static func parse(lines: [String], now: Date = .now) -> Ticket {
+        parse(ocrLines: syntheticLines(lines), now: now)
+    }
+
+    /// Primary entry — real OCR output carrying bounding boxes.
+    static func parse(ocrLines: [OCRLine], now: Date = .now) -> Ticket {
         var ticket = Ticket()
-        let normalized = lines.map(normalize)
+        let normalized = ocrLines.map { normalize($0.text) }
         let joined = normalized.joined(separator: "\n")
         // Spaced-out prints (入 場 券) match keywords on the compact form.
         let compact = joined.replacingOccurrences(of: " ", with: "")
@@ -14,10 +25,10 @@ nonisolated enum TicketTextParser {
         ticket.kind = parseKind(compact)
         ticket.brand = parseBrand(compact)
 
-        if let (from, to) = parseRoute(normalized) {
+        if let (from, to) = RouteDetector.detect(lines: ocrLines, kind: ticket.kind) {
             ticket.fromStation = from
             ticket.toStation = to
-        } else if ticket.kind == .nyujoken, let station = parseEntranceStation(normalized) {
+        } else if ticket.kind == .nyujoken, let station = RouteDetector.detectEntrance(lines: ocrLines) {
             ticket.fromStation = station
         }
 
@@ -29,6 +40,17 @@ nonisolated enum TicketTextParser {
         // 入場券 never carries a destination.
         if ticket.kind == .nyujoken { ticket.toStation = "" }
         return ticket
+    }
+
+    /// Lay out plain strings as full-width lines stacked top-to-bottom
+    /// (first line highest), in Vision's bottom-left-origin space.
+    private static func syntheticLines(_ lines: [String]) -> [OCRLine] {
+        let n = max(lines.count, 1)
+        let h = 0.8 / CGFloat(n)
+        return lines.enumerated().map { i, text in
+            let midY = 1 - (CGFloat(i) + 0.5) / CGFloat(n)
+            return OCRLine(text: text, box: CGRect(x: 0, y: midY - h / 2, width: 1, height: h))
+        }
     }
 
     // MARK: Normalisation
@@ -50,65 +72,6 @@ nonisolated enum TicketTextParser {
             s = s.replacingOccurrences(of: arrow, with: "→")
         }
         return s.trimmingCharacters(in: .whitespaces)
-    }
-
-    // MARK: Route
-
-    private static let zonePrefixes = ["(都)", "(区)", "(阪)", "(神)", "(名)", "(京)", "(福)", "(広)", "(仙)", "(札)", "(横)"]
-
-    static func parseRoute(_ lines: [String]) -> (String, String)? {
-        for line in lines {
-            guard line.contains("→") else { continue }
-            let parts = line.split(separator: "→", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            let from = cleanStation(String(parts[0]))
-            let to = cleanStation(String(parts[1]))
-            guard isPlausibleStation(from), isPlausibleStation(to) else { continue }
-            return (from, to)
-        }
-        return nil
-    }
-
-    static func parseEntranceStation(_ lines: [String]) -> String? {
-        // The big station line usually ends with 駅 on edmondson stock.
-        for line in lines {
-            let cleaned = cleanStation(line)
-            if cleaned.hasSuffix("駅"), cleaned.count <= 8 {
-                return String(cleaned.dropLast())
-            }
-        }
-        // Otherwise: first short all-kanji/kana line that isn't a keyword.
-        for line in lines {
-            let cleaned = cleanStation(line)
-            guard isPlausibleStation(cleaned), cleaned.count <= 6 else { continue }
-            if keywordFragments.contains(where: { cleaned.contains($0) }) { continue }
-            return cleaned
-        }
-        return nil
-    }
-
-    private static let keywordFragments = [
-        "入場券", "乗車券", "特急", "新幹線", "定期", "発行", "円", "下車", "前途", "無効",
-        "JR", "鉄道", "電鉄", "番", "号車", "様", "まで",
-    ]
-
-    private static func cleanStation(_ raw: String) -> String {
-        var s = raw.trimmingCharacters(in: .whitespaces)
-        for prefix in zonePrefixes where s.hasPrefix(prefix) {
-            s = String(s.dropFirst(prefix.count))
-        }
-        // Drop trailing fare-zone words that aren't part of the name.
-        s = s.replacingOccurrences(of: " ", with: "")
-        return s
-    }
-
-    private static func isPlausibleStation(_ s: String) -> Bool {
-        guard (1...10).contains(s.count) else { return false }
-        // Must be mostly CJK/kana; reject pure numbers/latin lines.
-        let cjk = s.unicodeScalars.filter {
-            (0x3040...0x30FF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value)
-        }
-        return cjk.count * 2 >= s.unicodeScalars.count
     }
 
     // MARK: Date

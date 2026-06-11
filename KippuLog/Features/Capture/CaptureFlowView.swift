@@ -17,7 +17,7 @@ struct CaptureFlowView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var scan: UIImage?
     @State private var draft = Ticket()
-    @State private var ocrTask: Task<[String], Never>?
+    @State private var ocrTask: Task<[OCRLine], Never>?
     @State private var autoArmed = true
     @State private var shutterBusy = false
 
@@ -241,8 +241,10 @@ struct CaptureFlowView: View {
         scan = flattened
         draft = Ticket() // fresh seed — the gate's punch is forever
         ocrTask = Task.detached(priority: .userInitiated) {
-            (try? await TicketRecognizer.recognizeText(in: flattened)) ?? []
+            (try? await TicketRecognizer.recognizeLines(in: flattened)) ?? []
         }
+        // Warm the gazetteer off-main while the gate plays.
+        Task.detached(priority: .utility) { _ = StationIndex.shared }
         phase = .gate
     }
 
@@ -251,7 +253,7 @@ struct CaptureFlowView: View {
     private func finishGate() {
         Task {
             let lines = await ocrTask?.value ?? []
-            var parsed = TicketTextParser.parse(lines: lines)
+            var parsed = TicketTextParser.parse(ocrLines: lines)
             parsed.styleSeed = draft.styleSeed
             parsed.id = draft.id
             draft = parsed

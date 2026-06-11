@@ -80,6 +80,64 @@ struct ParserTests {
         #expect(t.brand == .jrCentral)
         #expect(t.trainName == "こだま７３０号")
     }
+
+    // MARK: Route detection (geometry + gazetteer)
+
+    @Test func routeWithoutArrowOnSameBand() {
+        // The arrow was lost by OCR; two stations sit side by side.
+        let lines = [
+            OCRLine(text: "新幹線特急券", box: rect(0.1, 0.80, 0.8, 0.07)),
+            OCRLine(text: "東京", box: rect(0.10, 0.55, 0.25, 0.12)),
+            OCRLine(text: "新大阪", box: rect(0.62, 0.55, 0.30, 0.12)),
+            OCRLine(text: "￥１４，７２０", box: rect(0.3, 0.30, 0.4, 0.08)),
+        ]
+        let t = TicketTextParser.parse(ocrLines: lines, now: reference)
+        #expect(t.fromStation == "東京")
+        #expect(t.toStation == "新大阪")
+    }
+
+    @Test func routeSnapsNearMissOCR() {
+        // 柬 mis-OCR'd for 東; 太 for 大 — both within edit distance 1.
+        let lines = ["乗車券", "柬京 → 新太阪", "￥８，９１０"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "東京")
+        #expect(t.toStation == "新大阪")
+    }
+
+    @Test func routeWithGarbledArrowChar() {
+        // Vision read the arrow as a full-width tilde.
+        let lines = ["特急券", "新宿 〜 箱根湯本", "はこね５３号"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "新宿")
+        #expect(t.toStation == "箱根湯本")
+    }
+
+    @Test func katakanaDashIsNotASeparator() {
+        // サンダーバード contains ー; must not be split into stations.
+        let lines = [
+            OCRLine(text: "特急券", box: rect(0.1, 0.8, 0.4, 0.07)),
+            OCRLine(text: "大阪", box: rect(0.10, 0.55, 0.22, 0.12)),
+            OCRLine(text: "金沢", box: rect(0.66, 0.55, 0.22, 0.12)),
+            OCRLine(text: "サンダーバード５号", box: rect(0.2, 0.32, 0.6, 0.06)),
+        ]
+        let t = TicketTextParser.parse(ocrLines: lines, now: reference)
+        #expect(t.fromStation == "大阪")
+        #expect(t.toStation == "金沢")
+        #expect(t.trainName == "サンダーバード５号")
+    }
+
+    @Test func stackedStationsResolve() {
+        // 発駅 / 着駅 printed on two stacked lines, left-aligned, no arrow.
+        let lines = [
+            OCRLine(text: "乗車券", box: rect(0.1, 0.85, 0.4, 0.06)),
+            OCRLine(text: "京都", box: rect(0.12, 0.60, 0.3, 0.10)),
+            OCRLine(text: "大阪", box: rect(0.12, 0.46, 0.3, 0.10)),
+            OCRLine(text: "￥５６０", box: rect(0.12, 0.25, 0.3, 0.07)),
+        ]
+        let t = TicketTextParser.parse(ocrLines: lines, now: reference)
+        #expect(t.fromStation == "京都")
+        #expect(t.toStation == "大阪")
+    }
 }
 
 struct StoreLogicTests {
@@ -98,7 +156,42 @@ struct StoreLogicTests {
     }
 }
 
+struct StationIndexTests {
+    let index = StationIndex.shared
+
+    @Test func exactHit() {
+        #expect(index.snap("東京") == "東京")
+        #expect(index.snap("新大阪") == "新大阪")
+    }
+
+    @Test func stripsStationSuffixAndSpaces() {
+        #expect(index.snap("尾道駅") == "尾道")
+        #expect(index.snap(" 京 都 ") == "京都")
+    }
+
+    @Test func snapsSingleSubstitution() {
+        #expect(index.snap("柬京") == "東京")     // 柬→東
+        #expect(index.snap("新太阪") == "新大阪")  // 太→大
+    }
+
+    @Test func acceptsFareZoneLabels() {
+        #expect(index.snap("東京都区内") == "東京都区内")
+        #expect(index.snap("(阪)大阪市内") == "大阪市内")
+    }
+
+    @Test func rejectsNonStations() {
+        #expect(index.snap("乗車券") == nil)
+        #expect(index.snap("１４１７０円") == nil)
+        #expect(index.snap("") == nil)
+    }
+}
+
 // MARK: helpers
+
+/// Vision-space rect (origin bottom-left), x/y/width/height in 0...1.
+private func rect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> CGRect {
+    CGRect(x: x, y: y, width: w, height: h)
+}
 
 private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
     var c = Calendar(identifier: .gregorian)

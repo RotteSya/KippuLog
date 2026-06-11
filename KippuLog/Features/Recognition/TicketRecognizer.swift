@@ -2,11 +2,23 @@ import Vision
 import UIKit
 import CoreImage
 
-/// Vision front-end: reads the ticket's text and finds its outline.
-/// Everything here is off-main and stateless.
+/// One recognized line of text with its place on the ticket. The box is in
+/// Vision's normalized space (origin bottom-left, y up).
+nonisolated struct OCRLine: Sendable {
+    let text: String
+    let box: CGRect
+
+    var midY: CGFloat { box.midY }
+    var minX: CGFloat { box.minX }
+    var height: CGFloat { box.height }
+    var area: CGFloat { box.width * box.height }
+}
+
+/// Vision front-end: reads the ticket's text (with geometry) and finds its
+/// outline. Everything here is off-main and stateless.
 nonisolated enum TicketRecognizer {
-    /// Recognized text lines, top-to-bottom as printed.
-    static func recognizeText(in image: UIImage) async throws -> [String] {
+    /// Recognized lines with bounding boxes, top-to-bottom as printed.
+    static func recognizeLines(in image: UIImage) async throws -> [OCRLine] {
         guard let cgImage = image.cgImage else { return [] }
         var request = RecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -17,8 +29,17 @@ nonisolated enum TicketRecognizer {
         request.usesLanguageCorrection = true
         let observations = try await request.perform(on: cgImage)
         return observations
-            .sorted { $0.boundingBox.cgRect.midY > $1.boundingBox.cgRect.midY }
-            .compactMap { $0.topCandidates(1).first?.string }
+            .compactMap { observation -> OCRLine? in
+                guard let candidate = observation.topCandidates(1).first?.string else { return nil }
+                return OCRLine(text: candidate, box: observation.boundingBox.cgRect)
+            }
+            .sorted { $0.midY > $1.midY }   // top of the image first
+    }
+
+    /// Recognized text lines, top-to-bottom — convenience for the field
+    /// parsers that don't need geometry.
+    static func recognizeText(in image: UIImage) async throws -> [String] {
+        try await recognizeLines(in: image).map(\.text)
     }
 
     /// Strongest rectangle in the frame (normalized corners), if any.
@@ -26,10 +47,10 @@ nonisolated enum TicketRecognizer {
         guard let cgImage = image.cgImage else { return nil }
         var request = DetectRectanglesRequest()
         request.maximumObservations = 1
-        request.minimumAspectRatio = 0.45   // edmondson cards are wide
+        request.minimumAspectRatio = 0.30   // tolerate both orientations
         request.maximumAspectRatio = 0.95
-        request.minimumSize = 0.18
-        request.minimumConfidence = 0.55
+        request.minimumSize = 0.12
+        request.minimumConfidence = 0.50
         let observations = (try? await request.perform(on: cgImage)) ?? []
         return observations.first
     }
