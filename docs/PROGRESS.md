@@ -2,6 +2,24 @@
 
 Running build log. Newest first.
 
+## 2026-06-12 — boundaries you can trust + the 収蔵帳
+
+- [x] Boundary precision (informed by Mercari listing conventions):
+      centre-weighted quad choice among near-equal candidates, double-pass
+      flatten shaves one-sided shadow residue, cutout solidity ≥70%
+      rejects mounted hands. Set-photo + offset-shadow fixtures assert
+      the crop by aspect.
+- [x] The last word is manual: 切り取りを直す opens a corner editor
+      (drag four glass handles over the original, outside dimmed,
+      re-crop at zero inset, re-OCR fills only untouched fields).
+- [x] 収蔵帳: pinch out of the magazine into year spreads on kraft —
+      serif year + 旅 hanko + totals, photo-corner mounted minis with
+      seeded tilt, pasted month slips (tap → that month in the
+      magazine), minis zoom into the stage, pinch back. Thumbnail
+      pipeline (420px disk+cache) keeps it silk. Light + dark.
+- [x] 43 tests green (album walk, quad-editor walk, set-photo and
+      shadow e2e included).
+
 ## 2026-06-12 — rage-quit pass three: recognition, keyboard, shred
 
 - [x] OCR route detection survives real carnage: fused endpoints

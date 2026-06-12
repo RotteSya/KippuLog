@@ -95,6 +95,7 @@ Rendered purely from data — used only when there is no photo:
 | Moment | Treatment |
 |---|---|
 | timeline → detail | zoom transition; the photo settles under the lamp |
+| timeline ⇄ 収蔵帳 | pinch the magazine closed → the year album (kraft spreads, photo-corner mounts, month slips); pinch open to return |
 | detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
 | detail browse | horizontal paging, cards swap with bouncy springs |
 | detail dismiss | pinch-out or drag; card returns to its shelf |
