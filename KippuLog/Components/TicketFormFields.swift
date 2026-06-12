@@ -71,9 +71,11 @@ struct TicketFormFields: View {
             }
             fieldRow("列車") {
                 optionalField("のぞみ２２５号", value: $ticket.trainName)
+                    .accessibilityIdentifier("field-train")
             }
             fieldRow("座席") {
                 optionalField("７号車１２番Ａ席", value: $ticket.seat)
+                    .accessibilityIdentifier("field-seat")
             }
         }
     }

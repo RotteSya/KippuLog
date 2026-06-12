@@ -32,6 +32,16 @@ final class CaptureWalkTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["新大阪"].firstMatch.exists
                       || app.textFields.matching(NSPredicate(format: "value CONTAINS '新大阪'")).count > 0)
 
+        // Keyboard choreography: focus a field — the reveal steps aside,
+        // the desk takes the room, and the save button must stay reachable
+        // above the keyboard.
+        let seatField = app.textFields["field-seat"].firstMatch
+        XCTAssertTrue(seatField.waitForExistence(timeout: 4))
+        seatField.tap()
+        usleep(900_000)
+        shot(app, "21b-confirm-keyboard")
+        XCTAssertTrue(save.isHittable, "save must stay above the keyboard")
+
         save.tap()
 
         // Back on the shelf — the new journey is in the magazine, shown as

@@ -1,8 +1,11 @@
 import SwiftUI
+import Combine
 
 /// The reveal — the app lifts the ticket off the table: the raw frame
 /// recedes and dissolves, the ticket object rises into the lamp. Then a
-/// paper desk slides up from below carrying the form.
+/// paper desk slides up from below carrying the form. When the keyboard
+/// rises, the ticket steps back and the desk takes the whole room — the
+/// form is never squeezed.
 struct ConfirmTicketView: View {
     let scan: UIImage
     var cutout: UIImage?
@@ -12,21 +15,39 @@ struct ConfirmTicketView: View {
 
     @State private var lifted = false
     @State private var deskRaised = false
+    @State private var keyboardUp = false
 
     var body: some View {
         ZStack {
             StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.20), radius: 0.8, warmth: 0.5)
 
             VStack(spacing: 0) {
-                reveal
-                    .padding(.top, 38)
-                    .padding(.bottom, 26)
+                if !keyboardUp {
+                    reveal
+                        .padding(.top, 38)
+                        .padding(.bottom, 26)
+                        .transition(
+                            .scale(scale: 0.8, anchor: .top)
+                                .combined(with: .opacity)
+                        )
+                }
 
                 desk
                     .offset(y: deskRaised ? 0 : 420)
+                    .padding(.top, keyboardUp ? 10 : 0)
             }
         }
         .task { await choreograph() }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                keyboardUp = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                keyboardUp = false
+            }
+        }
     }
 
     // MARK: Reveal
@@ -44,12 +65,13 @@ struct ConfirmTicketView: View {
                 .scaleEffect(lifted ? 0.94 : 1)
                 .blur(radius: lifted ? 7 : 0)
 
-            // The ticket itself, lifted into the light.
+            // The ticket itself, lifted into the light. Animates only on
+            // kind changes — keystrokes must never schedule springs.
             TicketCardContent(ticket: draft, photo: scan, cutout: cutout, lying: false)
                 .frame(maxWidth: draft.kind.isEdmondson ? 250 : 305)
                 .opacity(lifted ? 1 : 0)
                 .scaleEffect(lifted ? 1 : 0.92)
-                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: draft)
+                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: draft.kind)
         }
         .frame(maxHeight: 250)
         .padding(.horizontal, 30)
