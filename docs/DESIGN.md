@@ -99,7 +99,7 @@ Rendered purely from data — used only when there is no photo:
 | detail browse | horizontal paging, cards swap with bouncy springs |
 | detail dismiss | pinch-out or drag; card returns to its shelf |
 | capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket leans back, feeds, squishes, gets bitten |
-| reveal | the punched scan settles into its studio mat; the form-desk rises |
+| reveal | the raw frame recedes and blurs; the ticket lifts into the lamp; the form-desk rises |
 | delete | ink dissolve shader — the ticket scatters to sumi dust |
 | scroll | subtle parallax + light sweep across cards |
 
