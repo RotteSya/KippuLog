@@ -17,6 +17,9 @@ struct CaptureFlowView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var scan: UIImage?
     @State private var cutout: UIImage?
+    @State private var original: UIImage?
+    @State private var quad: TicketQuad?
+    @State private var showQuadEditor = false
     @State private var draft = Ticket()
     @State private var ocrTask: Task<[OCRLine], Never>?
     @State private var cutoutTask: Task<UIImage?, Never>?
@@ -47,7 +50,8 @@ struct CaptureFlowView: View {
                         cutout: cutout,
                         draft: $draft,
                         onSave: save,
-                        onRetake: retake
+                        onRetake: retake,
+                        onAdjust: original == nil ? nil : { showQuadEditor = true }
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -55,6 +59,16 @@ struct CaptureFlowView: View {
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: phaseKey)
         .statusBarHidden(true)
+        .fullScreenCover(isPresented: $showQuadEditor) {
+            if let original {
+                QuadEditorView(
+                    original: original,
+                    initialQuad: quad,
+                    onApply: applyManualQuad,
+                    onCancel: { showQuadEditor = false }
+                )
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if phase != .confirm {
                 Button {
@@ -240,8 +254,11 @@ struct CaptureFlowView: View {
 
     private func acquired(_ image: UIImage) async {
         camera.stop()
-        let (flattened, tight) = await TicketRecognizer.flatten(image)
+        original = image
+        let result = await TicketRecognizer.flatten(image)
+        let flattened = result.image
         scan = flattened
+        quad = result.quad
         cutout = nil
         draft = Ticket() // fresh seed — the gate's punch is forever
         ocrTask = Task.detached(priority: .userInitiated) {
@@ -249,12 +266,46 @@ struct CaptureFlowView: View {
         }
         // A tight scan IS the ticket; otherwise lift the subject off its
         // background while the gate ceremony plays.
-        cutoutTask = tight ? nil : Task.detached(priority: .userInitiated) {
+        cutoutTask = result.tight ? nil : Task.detached(priority: .userInitiated) {
             await TicketRecognizer.liftSubject(flattened)
         }
         // Warm the gazetteer off-main while the gate plays.
         Task.detached(priority: .utility) { _ = StationIndex.shared }
         phase = .gate
+    }
+
+    /// The user redrew the cut — their word is law: re-crop with zero
+    /// inset, drop any cutout, and re-read. Fresh OCR fills only fields
+    /// they haven't already set by hand.
+    private func applyManualQuad(_ newQuad: TicketQuad) {
+        guard let original else { return }
+        showQuadEditor = false
+        quad = newQuad
+        Task {
+            let recropped = await Task.detached(priority: .userInitiated) {
+                TicketRecognizer.applyQuad(original, quad: newQuad, inset: 0)
+            }.value
+            guard let recropped else { return }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                scan = recropped
+                cutout = nil
+            }
+            let lines = await Task.detached(priority: .userInitiated) {
+                (try? await TicketRecognizer.recognizeLines(in: recropped)) ?? []
+            }.value
+            let fresh = TicketTextParser.parse(ocrLines: lines)
+            mergeFillingEmpty(from: fresh)
+        }
+    }
+
+    private func mergeFillingEmpty(from fresh: Ticket) {
+        if draft.fromStation.isEmpty { draft.fromStation = fresh.fromStation }
+        if draft.toStation.isEmpty { draft.toStation = fresh.toStation }
+        if draft.travelDate == nil { draft.travelDate = fresh.travelDate }
+        if draft.price == nil { draft.price = fresh.price }
+        if draft.trainName == nil { draft.trainName = fresh.trainName }
+        if draft.seat == nil { draft.seat = fresh.seat }
+        if draft.brand == .other { draft.brand = fresh.brand }
     }
 
     // MARK: Gate → confirm

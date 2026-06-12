@@ -258,6 +258,58 @@ func makeHard() {
     savePNG(ctx, to: "/tmp/kippu_test_hard.png")
 }
 
+// ---------------------------------------------------------------------------
+// Fixture 4 — Mercari set photo: the main ticket centred, a second smaller
+// ticket intruding from a corner. The chooser must take the centred one.
+// ---------------------------------------------------------------------------
+
+func makePair() {
+    let W = 2400, H = 1800
+    let ctx = makeContext(W, H)
+    ctx.setFillColor(CGColor(red: 0.20, green: 0.19, blue: 0.17, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+
+    // The intruder, top-left, smaller.
+    let second = ticketImage(width: 980, height: 656)
+    ctx.saveGState()
+    ctx.translateBy(x: 360, y: CGFloat(H) - 340)
+    ctx.rotate(by: 9 * .pi / 180)
+    ctx.setShadow(offset: CGSize(width: 4, height: -14), blur: 30, color: CGColor(gray: 0, alpha: 0.45))
+    ctx.draw(second, in: CGRect(x: -490, y: -328, width: 980, height: 656))
+    ctx.restoreGState()
+
+    // The subject, centred and larger.
+    let main = ticketImage(width: 1480, height: 990)
+    ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 46, color: CGColor(gray: 0, alpha: 0.5))
+    ctx.draw(main, in: CGRect(x: (2400 - 1480) / 2, y: (1800 - 990) / 2 - 60, width: 1480, height: 990))
+
+    savePNG(ctx, to: "/tmp/kippu_test_pair.png")
+}
+
+// ---------------------------------------------------------------------------
+// Fixture 5 — harsh one-sided shadow (window light): the halo hugs one
+// edge only, which used to survive a single-pass crop.
+// ---------------------------------------------------------------------------
+
+func makeShadow() {
+    let W = 2400, H = 1800
+    let ctx = makeContext(W, H)
+    ctx.setFillColor(CGColor(red: 0.55, green: 0.50, blue: 0.44, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+
+    let ticket = ticketImage(width: 1480, height: 990)
+    let origin = CGPoint(x: (2400 - 1480) / 2, y: (1800 - 990) / 2)
+
+    // Hard offset shadow slab — only right + bottom.
+    ctx.setFillColor(CGColor(gray: 0.08, alpha: 0.55))
+    ctx.fill(CGRect(x: origin.x + 70, y: origin.y - 80, width: 1480, height: 990))
+
+    ctx.draw(ticket, in: CGRect(origin: origin, size: CGSize(width: 1480, height: 990)))
+    savePNG(ctx, to: "/tmp/kippu_test_shadow.png")
+}
+
 makeStraight()
 makeAngled()
 makeHard()
+makePair()
+makeShadow()

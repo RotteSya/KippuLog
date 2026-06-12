@@ -32,6 +32,24 @@ final class CaptureWalkTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["新大阪"].firstMatch.exists
                       || app.textFields.matching(NSPredicate(format: "value CONTAINS '新大阪'")).count > 0)
 
+        // Manual boundary editor: open, nudge a corner, re-apply.
+        let adjust = app.buttons["adjust-crop"].firstMatch
+        XCTAssertTrue(adjust.waitForExistence(timeout: 4))
+        adjust.tap()
+        XCTAssertTrue(app.staticTexts["切り取り範囲"].waitForExistence(timeout: 5))
+        sleep(1)
+        shot(app, "27-quad-editor")
+        let handle = app.otherElements["quad-handle-br"].firstMatch
+        XCTAssertTrue(handle.waitForExistence(timeout: 3))
+        let start = handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: -18, dy: -14)))
+        let apply = app.buttons["quad-apply"].firstMatch
+        XCTAssertTrue(apply.waitForExistence(timeout: 4))
+        apply.tap()
+        XCTAssertTrue(save.waitForExistence(timeout: 8))
+        sleep(1)
+        shot(app, "28-confirm-recropped")
+
         // Keyboard choreography: focus a field — the reveal steps aside,
         // the desk takes the room, and the save button must stay reachable
         // above the keyboard.

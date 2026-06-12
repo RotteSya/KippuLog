@@ -39,8 +39,8 @@ struct RecognitionIntegrationTests {
             Issue.record("fixture missing — run scripts/gen_test_photos.swift")
             return
         }
-        let (scan, _) = await TicketRecognizer.flatten(photo)
-        let lines = (try? await TicketRecognizer.recognizeLines(in: scan)) ?? []
+        let result = await TicketRecognizer.flatten(photo)
+        let lines = (try? await TicketRecognizer.recognizeLines(in: result.image)) ?? []
         #expect(!lines.isEmpty)
 
         let parsed = TicketTextParser.parse(ocrLines: lines)
@@ -48,6 +48,38 @@ struct RecognitionIntegrationTests {
         #expect(parsed.toStation == "京都市内")
         #expect(parsed.price == 8910)
         #expect(parsed.kind == .joshaken)
+    }
+
+    /// Mercari-style set photo: several tickets in frame. The crop must
+    /// land on the dominant centred ticket — verified by the scan aspect
+    /// (a clean MARS cut ≈ 1.49) and by its stations parsing through.
+    @Test func picksDominantTicketAmongMany() async throws {
+        guard let photo = UIImage(contentsOfFile: "/tmp/kippu_test_pair.png") else {
+            Issue.record("fixture missing — run scripts/gen_test_photos.swift")
+            return
+        }
+        let result = await TicketRecognizer.flatten(photo)
+        #expect(result.tight)
+        let aspect = result.image.size.width / max(result.image.size.height, 1)
+        #expect(aspect > 1.32 && aspect < 1.65)
+
+        let lines = (try? await TicketRecognizer.recognizeLines(in: result.image)) ?? []
+        let parsed = TicketTextParser.parse(ocrLines: lines)
+        #expect(parsed.fromStation == "東京")
+        #expect(parsed.toStation == "新大阪")
+    }
+
+    /// One-sided hard shadow: the halo inflates the first quad on a single
+    /// edge; the second pass must shave it. Verified by the scan aspect.
+    @Test func shavesOffsetShadowResidue() async throws {
+        guard let photo = UIImage(contentsOfFile: "/tmp/kippu_test_shadow.png") else {
+            Issue.record("fixture missing — run scripts/gen_test_photos.swift")
+            return
+        }
+        let result = await TicketRecognizer.flatten(photo)
+        #expect(result.tight)
+        let aspect = result.image.size.width / max(result.image.size.height, 1)
+        #expect(aspect > 1.32 && aspect < 1.65)
     }
 
     // MARK: helpers

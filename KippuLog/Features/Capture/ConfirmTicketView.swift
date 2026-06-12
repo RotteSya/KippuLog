@@ -12,6 +12,8 @@ struct ConfirmTicketView: View {
     @Binding var draft: Ticket
     var onSave: () -> Void
     var onRetake: () -> Void
+    /// Opens the manual corner editor; nil when no original survives.
+    var onAdjust: (() -> Void)?
 
     @State private var lifted = false
     @State private var deskRaised = false
@@ -124,17 +126,34 @@ struct ConfirmTicketView: View {
             .glassEffect(.regular.tint(Ink.shu).interactive(), in: .capsule)
             .accessibilityIdentifier("confirm-save")
 
-            Button {
-                Haptic.play(.tick)
-                onRetake()
-            } label: {
-                Text("撮り直す")
-                    .font(Typo.gothic(12))
-                    .tracking(1.5)
-                    .foregroundStyle(Ink.textSoft)
-                    .padding(6)
+            HStack(spacing: 26) {
+                Button {
+                    Haptic.play(.tick)
+                    onRetake()
+                } label: {
+                    Text("撮り直す")
+                        .font(Typo.gothic(12))
+                        .tracking(1.5)
+                        .foregroundStyle(Ink.textSoft)
+                        .padding(6)
+                }
+                .buttonStyle(.plain)
+
+                if let onAdjust {
+                    Button {
+                        Haptic.play(.tick)
+                        onAdjust()
+                    } label: {
+                        Text("切り取りを直す")
+                            .font(Typo.gothic(12))
+                            .tracking(1.5)
+                            .foregroundStyle(Ink.textSoft)
+                            .padding(6)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("adjust-crop")
+                }
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 28)
         .padding(.top, 8)
