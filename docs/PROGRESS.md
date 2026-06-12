@@ -2,6 +2,25 @@
 
 Running build log. Newest first.
 
+## 2026-06-12 — borderless objects + true zoom
+
+X-feedback pass two: the photo mat read as a cheap frame, the zoom didn't
+zoom, the inspector didn't exist.
+
+- [x] Quad selection peels shadow halos (nested ≥55% candidate wins) and
+      insets corners 1.2% — zero background slivers; fare OCR improved.
+- [x] Subject lift (VNGenerateForegroundInstanceMask) when the quad
+      fails → alpha-PNG cutout, the ticket's silhouette on the page.
+- [x] TicketCard v2: cutout / borderless scan (edge catch-light, no
+      strokes) / plate. MattedPhoto deleted. Image cache + save-time
+      downscale.
+- [x] Zoom: source moved onto the card alone; pinch-to-open timeline
+      cards; PhotoInspector (UIScrollView 1–5×, double-tap, drag-down,
+      layoutSubviews-driven fit).
+- [x] Confirm reveal = lift (frame recedes/blurs, ticket rises).
+- [x] Fixtures generator (straight + angled-on-clutter), new UI tests
+      (inspector, pinch-open, angled e2e). Full suite green; light+dark.
+
 ## 2026-06-12 — photo-first + OCR accuracy
 
 The rendered plate looked wrong whenever OCR missed, and the user's real

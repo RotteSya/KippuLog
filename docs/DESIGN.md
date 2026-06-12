@@ -7,14 +7,16 @@ ticket gate.
 
 ## Principles
 
-1. **Show the real ticket, framed like a catalogue.** The hero everywhere
-   is the user's own photographed 切符 — matted on paper, tight-cropped,
-   under one consistent studio light (`TicketCard` → `MattedPhoto`). The
-   app *reads* the ticket to fill in the journey (route, date, fare), but
-   it never replaces the photo with a synthetic drawing. The rendered
-   plate (`TicketArtView`) survives only as the fallback for tickets with
-   no photo — the sample collection and manual entries — wearing the
-   identical `studioFrame` so plate and photo sit side by side as one shoot.
+1. **The ticket is the object — never framed, never boxed.** The hero
+   everywhere is the user's own photographed 切符, presented as the thing
+   itself: halo-peeled, scanner-tight perspective crop shown full-bleed
+   with a paper-thickness edge light (`ScanObject`), or — when the photo
+   carries background — the subject-lifted silhouette resting directly on
+   the page, its shadow tracing its own alpha. No mats, no strokes, no
+   borders. The app *reads* the ticket to fill in the journey but never
+   replaces the photo with a drawing; the rendered plate (`TicketArtView`)
+   survives only as the fallback for photo-less tickets (samples, manual
+   entries), wearing the identical `studioFrame`.
 2. **One accent.** 朱 (vermilion, `#D8401F`) appears only where the app
    acts: the punch button, live markers, the era stamp. Everything else is
    paper and sumi ink.
@@ -54,12 +56,13 @@ over cream paper, like real security patterns.
 
 ## The studio system (TicketCard)
 
-`TicketCard` is the one way a ticket appears as an object. A captured
-ticket shows its **real photo**, matted (`MattedPhoto`): tight on a thin
-paper border that matches the plate stock, hairline edge, clamped to its
-natural aspect so a panorama or tall crop can't break the page. A ticket
-with no photo falls back to the rendered plate below. Both wear the same
-`studioFrame`.
+`TicketCard` is the one way a ticket appears as an object, in priority:
+the **subject-lifted cutout** (the ticket's true silhouette, alpha-masked),
+the **borderless scan** (halo-peeled quad, corners inset 1.2%, full-bleed
+with a top edge catch-light), or the rendered plate for photo-less
+tickets. All wear the same `studioFrame`. Tap the stage hero for the
+full-screen `PhotoInspector` (pinch 1–5×, double-tap, drag-down); pinch a
+timeline card outward to zoom into its stage.
 
 ### The fallback plate (TicketArt)
 
