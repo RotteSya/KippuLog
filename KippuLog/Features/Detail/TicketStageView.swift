@@ -12,7 +12,7 @@ struct TicketStageView: View {
     @State private var pinchScale: CGFloat = 1
     @State private var showEdit = false
     @State private var confirmDelete = false
-    @State private var dissolveProgress: Double = 0
+    @State private var shredProgress: Double = 0
 
     init(selection: Binding<Ticket?>) {
         _selection = selection
@@ -27,7 +27,7 @@ struct TicketStageView: View {
                 ForEach(store.tickets) { ticket in
                     StagePage(
                         ticketID: ticket.id,
-                        dissolveProgress: ticket.id == pageID ? dissolveProgress : 0
+                        shredProgress: ticket.id == pageID ? shredProgress : 0
                     )
                     .tag(ticket.id)
                 }
@@ -56,7 +56,7 @@ struct TicketStageView: View {
             isPresented: $confirmDelete,
             titleVisibility: .visible
         ) {
-            Button("手放す", role: .destructive) { dissolveAndDelete() }
+            Button("手放す", role: .destructive) { shredAndDelete() }
             Button("やめる", role: .cancel) {}
         }
         .toolbarVisibility(.hidden, for: .navigationBar)
@@ -147,19 +147,25 @@ struct TicketStageView: View {
 
     // MARK: Delete
 
-    private func dissolveAndDelete() {
+    /// 改札が回収する — the gate takes the ticket back: a punch, then the
+    /// card tears into strips that flutter away.
+    private func shredAndDelete() {
         guard let ticket = currentTicket else { return }
-        Haptic.play(.stamp)
+        Haptic.play(.punch)
         let neighbors = store.tickets
         let index = neighbors.firstIndex(where: { $0.id == ticket.id }) ?? 0
         let next = neighbors.indices.contains(index + 1) ? neighbors[index + 1]
             : (index > 0 ? neighbors[index - 1] : nil)
 
-        withAnimation(.easeIn(duration: 0.85)) {
-            dissolveProgress = 1
+        Task {
+            try? await Task.sleep(for: .milliseconds(420))
+            Haptic.play(.stamp)
+        }
+        withAnimation(.easeIn(duration: 0.95)) {
+            shredProgress = 1
         } completion: {
             store.remove(ticket)
-            dissolveProgress = 0
+            shredProgress = 0
             if let next {
                 pageID = next.id
                 selection = next

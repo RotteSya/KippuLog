@@ -84,7 +84,12 @@ final class InteractionTests: XCTestCase {
         } else {
             fallback.tap()
         }
-        sleep(2) // ink dissolve
+        // The shred plays for ~0.95s — catch it mid-fall, twice.
+        usleep(350_000)
+        shot(app, "33a-shred-early")
+        usleep(320_000)
+        shot(app, "33b-shred-late")
+        usleep(900_000)
 
         app.buttons["stage-close"].firstMatch.tap()
         sleep(1)

@@ -180,21 +180,44 @@ static inline half3 spectral(float t) {
 }
 
 // ---------------------------------------------------------------------------
-// inkDissolve — the ticket scatters into sumi dust. progress 0→1.
+// shredFall — the gate takes the ticket back. The card tears into vertical
+// strips; each waits its hashed turn, then falls under gravity with a
+// flutter and a slight shear, its torn top edge inked, fading as it goes.
+// progress 0→1.
 // ---------------------------------------------------------------------------
 
-[[ stitchable ]] half4 inkDissolve(float2 position, half4 color, float2 size,
-                                   float progress, float seed) {
-    if (progress <= 0.001) { return color; }
-    if (color.a <= 0.001h) { return color; }
-    float2 uv = position / max(size.x, 1.0);
-    float n = fbm(uv * 9.0 + seed * 13.7);
-    float p = progress * 1.15;
-    float keep = smoothstep(p - 0.06, p + 0.02, n + 0.08);
-    float edge = smoothstep(p - 0.16, p - 0.02, n + 0.08) * (1.0 - keep);
-    half3 ink = half3(0.13, 0.11, 0.09);
-    half3 rgb = mix(ink, color.rgb, half(saturate(1.0 - edge * 1.6)));
-    return half4(rgb, color.a * half(keep));
+[[ stitchable ]] half4 shredFall(float2 position, SwiftUI::Layer layer,
+                                 float2 size, float progress, float seed) {
+    if (progress <= 0.001) { return layer.sample(position); }
+
+    float stripCount = 13.0;
+    float stripW = max(size.x / stripCount, 1.0);
+    float idx = floor(position.x / stripW);
+    float h = hash21(float2(idx * 7.31 + seed, seed * 0.77 + idx * 1.13));
+
+    float delay = h * 0.42;
+    float p = clamp((progress - delay) / 0.58, 0.0, 1.0);
+    if (p <= 0.0) { return layer.sample(position); }
+
+    // Gravity, flutter, and a hash-signed shear (the strip tips as it falls).
+    float fall = p * p * size.y * 1.5;
+    float sway = sin(p * 9.0 + h * 6.28318) * stripW * 0.6 * p;
+    float yNorm = position.y / max(size.y, 1.0);
+    float shear = (h - 0.5) * 40.0 * p * (yNorm - 0.5);
+
+    float2 src = float2(position.x - sway - shear, position.y - fall);
+    float minX = idx * stripW;
+    float maxX = (idx + 1.0) * stripW;
+    if (src.x < minX || src.x >= maxX || src.y < 0.0) { return half4(0.0); }
+
+    half4 c = layer.sample(src);
+    // Torn leading edge picks up ink for its last moment.
+    float edge = smoothstep(24.0, 0.0, src.y);
+    half3 ink = half3(0.16, 0.13, 0.10) * c.a;
+    c.rgb = mix(c.rgb, ink, half(edge * 0.8));
+
+    float fade = 1.0 - smoothstep(0.55, 1.0, p);
+    return c * half(fade);
 }
 
 // ---------------------------------------------------------------------------

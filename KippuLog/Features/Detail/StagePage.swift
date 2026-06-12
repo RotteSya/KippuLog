@@ -6,7 +6,7 @@ import SwiftUI
 struct StagePage: View {
     @Environment(TicketStore.self) private var store
     let ticketID: UUID
-    var dissolveProgress: Double = 0
+    var shredProgress: Double = 0
 
     @State private var tilt: CGSize = .zero
     @State private var settled = false
@@ -34,30 +34,34 @@ struct StagePage: View {
                 .padding(.top, 74)
                 .padding(.bottom, 50)
 
-                Text(ticket.routeText)
-                    .font(Typo.mincho(25))
-                    .tracking(2.5)
-                    .foregroundStyle(Stage.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, 9)
+                Group {
+                    Text(ticket.routeText)
+                        .font(Typo.mincho(25))
+                        .tracking(2.5)
+                        .foregroundStyle(Stage.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.horizontal, 28)
+                        .padding(.bottom, 9)
 
-                if let date = ticket.travelDate {
-                    Text(Editorial.shortDate(date))
-                        .font(Typo.caption(10.5))
-                        .tracking(3)
-                        .foregroundStyle(Stage.faintText)
+                    if let date = ticket.travelDate {
+                        Text(Editorial.shortDate(date))
+                            .font(Typo.caption(10.5))
+                            .tracking(3)
+                            .foregroundStyle(Stage.faintText)
+                    }
+
+                    StubCard(ticket: ticket)
+                        .frame(maxWidth: 318)
+                        .padding(.horizontal, 30)
+                        .padding(.top, 34)
+
+                    memoBlock(ticket)
+                        .padding(.horizontal, 36)
+                        .padding(.top, 30)
                 }
-
-                StubCard(ticket: ticket)
-                    .frame(maxWidth: 318)
-                    .padding(.horizontal, 30)
-                    .padding(.top, 34)
-
-                memoBlock(ticket)
-                    .padding(.horizontal, 36)
-                    .padding(.top, 30)
+                // The page clears its throat while the gate takes the ticket.
+                .opacity(1 - min(1, shredProgress * 2.6))
 
                 Spacer(minLength: 120)
             }
@@ -113,7 +117,7 @@ struct StagePage: View {
                 x: -tilt.width * 16,
                 y: 16 + tilt.height * 10
             )
-            .inkDissolve(progress: dissolveProgress, seed: ticket.styleSeed)
+            .shredFall(progress: shredProgress, seed: ticket.styleSeed)
             .scaleEffect(settled ? 1 : 0.955)
             .opacity(settled ? 1 : 0)
             .simultaneousGesture(tiltGesture)
@@ -135,7 +139,7 @@ struct StagePage: View {
         return heroCard(ticket)
             .scaleEffect(x: 1, y: -1)
             .blur(radius: 3.5)
-            .opacity(settled ? (0.13 - 0.08 * mag) : 0)
+            .opacity(settled ? (0.13 - 0.08 * mag) * (1 - min(1, shredProgress * 2.6)) : 0)
             .mask {
                 LinearGradient(
                     stops: [
