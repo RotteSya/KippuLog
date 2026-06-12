@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 struct TicketShareCard: Transferable {
     let ticket: Ticket
     let photo: UIImage?
+    var cutout: UIImage? = nil
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .png) { card in
@@ -18,7 +19,9 @@ struct TicketShareCard: Transferable {
 
     @MainActor
     private func pngData() throws -> Data {
-        let renderer = ImageRenderer(content: ShareCardView(ticket: ticket, photo: photo))
+        let renderer = ImageRenderer(
+            content: ShareCardView(ticket: ticket, photo: photo, cutout: cutout)
+        )
         renderer.scale = 2
         renderer.proposedSize = ProposedViewSize(width: 540, height: 675)
         guard let data = renderer.uiImage?.pngData() else {
@@ -32,6 +35,7 @@ struct TicketShareCard: Transferable {
 struct ShareCardView: View {
     let ticket: Ticket
     var photo: UIImage?
+    var cutout: UIImage? = nil
 
     var body: some View {
         ZStack {
@@ -40,7 +44,7 @@ struct ShareCardView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                TicketCardContent(ticket: ticket, photo: photo, lying: false)
+                TicketCardContent(ticket: ticket, photo: photo, cutout: cutout, lying: false)
                     .frame(maxWidth: ticket.kind.isEdmondson ? 360 : 430)
                     .padding(.horizontal, 48)
 

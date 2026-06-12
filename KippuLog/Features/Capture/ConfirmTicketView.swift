@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// The reveal — the punched scan settles into its studio mat under the
-/// lamp, then a paper desk rises from below carrying the form.
+/// The reveal — the app lifts the ticket off the table: the raw frame
+/// recedes and dissolves, the ticket object rises into the lamp. Then a
+/// paper desk slides up from below carrying the form.
 struct ConfirmTicketView: View {
     let scan: UIImage
+    var cutout: UIImage?
     @Binding var draft: Ticket
     var onSave: () -> Void
     var onRetake: () -> Void
 
-    @State private var framed = false
+    @State private var lifted = false
     @State private var deskRaised = false
 
     var body: some View {
@@ -31,23 +33,25 @@ struct ConfirmTicketView: View {
 
     private var reveal: some View {
         ZStack {
-            // The bare scan, briefly, before the mat closes around it.
+            // The raw frame — recedes and blurs away as the ticket lifts.
             Image(uiImage: scan)
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: draft.kind.isEdmondson ? 240 : 300)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .shadow(color: .black.opacity(0.5), radius: 20, y: 14)
-                .opacity(framed ? 0 : 1)
-                .scaleEffect(framed ? 1.05 : 1)
+                .frame(maxWidth: 300, maxHeight: 230)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .shadow(color: .black.opacity(0.45), radius: 16, y: 10)
+                .opacity(lifted ? 0 : 1)
+                .scaleEffect(lifted ? 0.94 : 1)
+                .blur(radius: lifted ? 7 : 0)
 
-            // The framed studio card — the real ticket, matted.
-            TicketCardContent(ticket: draft, photo: scan, lying: false)
-                .frame(maxWidth: draft.kind.isEdmondson ? 240 : 300)
-                .opacity(framed ? 1 : 0)
-                .scaleEffect(framed ? 1 : 0.95)
+            // The ticket itself, lifted into the light.
+            TicketCardContent(ticket: draft, photo: scan, cutout: cutout, lying: false)
+                .frame(maxWidth: draft.kind.isEdmondson ? 250 : 305)
+                .opacity(lifted ? 1 : 0)
+                .scaleEffect(lifted ? 1 : 0.92)
                 .animation(.spring(response: 0.45, dampingFraction: 0.82), value: draft)
         }
+        .frame(maxHeight: 250)
         .padding(.horizontal, 30)
     }
 
@@ -118,13 +122,13 @@ struct ConfirmTicketView: View {
     // MARK: Choreography
 
     private func choreograph() async {
-        guard !framed else { return }
+        guard !lifted else { return }
         try? await Task.sleep(for: .milliseconds(340))
         Haptic.play(.stamp)
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) {
-            framed = true
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
+            lifted = true
         }
-        try? await Task.sleep(for: .milliseconds(360))
+        try? await Task.sleep(for: .milliseconds(340))
         withAnimation(.spring(response: 0.6, dampingFraction: 0.84)) {
             deskRaised = true
         }

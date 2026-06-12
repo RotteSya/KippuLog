@@ -10,6 +10,7 @@ struct StagePage: View {
 
     @State private var tilt: CGSize = .zero
     @State private var settled = false
+    @State private var showInspector = false
     @State private var memoDraft = ""
     @FocusState private var memoFocused: Bool
 
@@ -70,6 +71,11 @@ struct StagePage: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+        .fullScreenCover(isPresented: $showInspector) {
+            if let photo = store.photo(for: ticket) {
+                PhotoInspector(photo: photo)
+            }
+        }
     }
 
     // MARK: Hero
@@ -79,17 +85,22 @@ struct StagePage: View {
     }
 
     private func heroCard(_ ticket: Ticket) -> some View {
-        TicketCardContent(ticket: ticket, photo: store.photo(for: ticket), lying: false)
-            .frame(maxWidth: heroWidth(ticket))
-            .visualEffect { [tilt] content, proxy in
-                content.colorEffect(
-                    ShaderLibrary.holoSheen(
-                        .float2(proxy.size),
-                        .float2(Float(tilt.width), Float(tilt.height)),
-                        .float(Float(min(1, hypot(tilt.width, tilt.height) * 1.8 + 0.12)))
-                    )
+        TicketCardContent(
+            ticket: ticket,
+            photo: store.photo(for: ticket),
+            cutout: store.cutout(for: ticket),
+            lying: false
+        )
+        .frame(maxWidth: heroWidth(ticket))
+        .visualEffect { [tilt] content, proxy in
+            content.colorEffect(
+                ShaderLibrary.holoSheen(
+                    .float2(proxy.size),
+                    .float2(Float(tilt.width), Float(tilt.height)),
+                    .float(Float(min(1, hypot(tilt.width, tilt.height) * 1.8 + 0.12)))
                 )
-            }
+            )
+        }
     }
 
     private func hero(_ ticket: Ticket) -> some View {
@@ -106,9 +117,14 @@ struct StagePage: View {
             .scaleEffect(settled ? 1 : 0.955)
             .opacity(settled ? 1 : 0)
             .simultaneousGesture(tiltGesture)
+            .onTapGesture {
+                guard store.photo(for: ticket) != nil else { return }
+                Haptic.play(.tick)
+                showInspector = true
+            }
             .padding(.horizontal, 24)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("切符 \(ticket.routeText)")
+            .accessibilityLabel("切符 \(ticket.routeText)。タップで原寸表示")
             .accessibilityIdentifier("stage-hero")
     }
 
@@ -137,8 +153,10 @@ struct StagePage: View {
     private func reflectionOffset(_ ticket: Ticket) -> CGFloat {
         let width = heroWidth(ticket)
         let aspect: CGFloat
-        if store.photo(for: ticket) != nil, let raw = ticket.photoAspect {
-            aspect = CardMetrics.cardAspect(photoAspect: raw)
+        if let cutout = store.cutout(for: ticket), cutout.size.height > 0 {
+            aspect = cutout.size.width / cutout.size.height
+        } else if store.photo(for: ticket) != nil, let raw = ticket.photoAspect {
+            aspect = CardMetrics.clampedPhotoAspect(raw)
         } else {
             aspect = TicketArtView.aspect(for: ticket.kind)
         }

@@ -184,13 +184,10 @@ struct TimelineView: View {
                     ticket: ticket,
                     number: numbers[ticket.id] ?? 0,
                     alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
-                    highlighted: highlightID == ticket.id
+                    highlighted: highlightID == ticket.id,
+                    zoomNamespace: zoomNamespace,
+                    onOpen: { selectedTicket = ticket }
                 )
-                .matchedTransitionSource(id: ticket.id, in: zoomNamespace)
-                .onTapGesture {
-                    Haptic.play(.tick)
-                    selectedTicket = ticket
-                }
                 .id(ticket.id)
                 .padding(.horizontal, 26)
                 .padding(.bottom, 56)

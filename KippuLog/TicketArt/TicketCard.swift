@@ -2,15 +2,19 @@ import SwiftUI
 
 /// The one way a ticket appears as a physical object anywhere in the app.
 ///
-/// A captured ticket shows the **real photo**, matted like a catalogue print
-/// — tight on a thin paper border, uniform corner, seeded resting tilt, the
-/// shared studio shadow. A ticket with no photo (the sample collection, a
-/// manual entry) falls back to the rendered `TicketArtView` plate. Both wear
-/// the identical `studioFrame`, so the magazine reads as one shoot.
+/// No frames, no mats — the ticket itself is the object:
+/// 1. **Cutout** — the subject-lifted ticket (alpha PNG): its true shape
+///    rests on the page, shadow tracing its own silhouette.
+/// 2. **Scan** — a tight perspective-corrected capture shown full-bleed
+///    with real ticket corners and a paper-thickness catch-light.
+/// 3. **Plate** — the data-drawn fallback for tickets with no photo
+///    (samples, manual entries).
+/// All three wear the identical `studioFrame`, so the magazine reads as
+/// one shoot under one lamp.
 ///
-/// Store-backed: pulls the photo from `TicketStore`. For contexts without the
-/// environment (share-sheet `ImageRenderer`) or with an unsaved image (the
-/// capture confirm), use `TicketCardContent` directly.
+/// Store-backed; for contexts without the environment (share-sheet
+/// `ImageRenderer`) or with unsaved images (capture confirm), use
+/// `TicketCardContent` directly.
 struct TicketCard: View {
     @Environment(TicketStore.self) private var store
     let ticket: Ticket
@@ -18,105 +22,92 @@ struct TicketCard: View {
     var lying = true
 
     var body: some View {
-        TicketCardContent(ticket: ticket, photo: store.photo(for: ticket), lying: lying)
+        TicketCardContent(
+            ticket: ticket,
+            photo: store.photo(for: ticket),
+            cutout: store.cutout(for: ticket),
+            lying: lying
+        )
     }
 }
 
-/// Pure, environment-free card — explicit photo (nil → rendered plate).
+/// Pure, environment-free card — explicit images (both nil → plate).
 struct TicketCardContent: View {
     let ticket: Ticket
     let photo: UIImage?
+    var cutout: UIImage? = nil
     var lying = true
 
     var body: some View {
         Group {
-            if let photo {
-                MattedPhoto(ticket: ticket, photo: photo)
+            if let cutout {
+                // The lifted ticket — its own silhouette is the card.
+                Image(uiImage: cutout)
+                    .resizable()
+                    .scaledToFit()
+            } else if let photo {
+                ScanObject(photo: photo, aspect: scanAspect(photo))
             } else {
                 TicketArtView(ticket: ticket)
             }
         }
         .studioFrame(seed: ticket.styleSeed, lying: lying)
     }
+
+    private func scanAspect(_ photo: UIImage) -> CGFloat {
+        let raw = ticket.photoAspect
+            ?? (photo.size.height > 0 ? photo.size.width / photo.size.height : MarsTicketFace.aspect)
+        return CardMetrics.clampedPhotoAspect(raw)
+    }
 }
 
-/// Shared mat geometry, so the stage (reflection offset) and the card agree.
+/// Display metrics shared between the cards and the stage.
 enum CardMetrics {
-    /// Mat inset as a fraction of card width.
-    static let matInset: CGFloat = 0.035
-
     /// Photo aspect (w/h), clamped so neither a panorama nor a tall crop
     /// breaks the page rhythm.
     static func clampedPhotoAspect(_ raw: CGFloat) -> CGFloat {
-        min(max(raw, 1.05), 2.1)
-    }
-
-    /// Overall card aspect (w/h) for a matted photo of the given photo aspect.
-    static func cardAspect(photoAspect raw: CGFloat) -> CGFloat {
-        let photoH = (1 - matInset * 2) / clampedPhotoAspect(raw)
-        return 1 / (photoH + matInset * 2)
+        min(max(raw, 1.0), 2.3)
     }
 }
 
-/// A photographed ticket mounted on a paper mat. The photo keeps its true
-/// aspect (clamped to a sane band so an un-cropped frame can't dominate the
-/// page); the mat carries the same warm paper and faint grain as the plates.
-struct MattedPhoto: View {
-    let ticket: Ticket
+/// A tight scan shown as the ticket itself: true corners (≈1 mm), a
+/// hairline of caught light along the top edge for paper thickness, and
+/// nothing else — the photograph is the surface.
+struct ScanObject: View {
     let photo: UIImage
-
-    private let corner: CGFloat = 7
+    let aspect: CGFloat
 
     var body: some View {
         GeometryReader { proxy in
             let w = proxy.size.width
-            let inset = w * CardMetrics.matInset
-            ZStack {
-                // Paper mat — same stock world as the rendered plates.
-                RoundedRectangle(cornerRadius: corner)
-                    .fill(Color(hex: 0xF3EEE3))
-                    .visualEffect { [seed = ticket.styleSeed] content, geo in
-                        content.colorEffect(
-                            ShaderLibrary.ticketPaper(
-                                .float2(geo.size),
-                                .color(Color.clear),
-                                .float(Float(seed % 9973)),
-                                .float(0)
-                            )
+            // Real MARS corner ≈ 1mm on an 85mm ticket.
+            let corner = max(3, w * 0.013)
+            Image(uiImage: photo)
+                .resizable()
+                .scaledToFill()
+                .frame(width: w, height: w / aspect)
+                .clipShape(RoundedRectangle(cornerRadius: corner))
+                .overlay {
+                    // Paper-thickness light: bright along the top edge,
+                    // a breath of seat shadow at the bottom. No outline.
+                    RoundedRectangle(cornerRadius: corner)
+                        .strokeBorder(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .white.opacity(0.55), location: 0),
+                                    .init(color: .white.opacity(0.0), location: 0.18),
+                                    .init(color: .black.opacity(0.0), location: 0.82),
+                                    .init(color: .black.opacity(0.18), location: 1),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: max(0.7, w * 0.0024)
                         )
-                    }
-
-                // The photograph, inset on the mat.
-                Image(uiImage: photo)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: w - inset * 2,
-                        height: (w - inset * 2) / photoAspect
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: corner * 0.6))
-                    .overlay {
-                        // Hairline so the print reads as mounted, not floating.
-                        RoundedRectangle(cornerRadius: corner * 0.6)
-                            .stroke(Color.black.opacity(0.14), lineWidth: 0.6)
-                    }
-                    // A whisper of inner shadow where print meets mat.
-                    .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: corner)
-                    .stroke(Color.black.opacity(0.06), lineWidth: 0.7)
-            }
+                        .blendMode(.overlay)
+                }
         }
-        .aspectRatio(CardMetrics.cardAspect(photoAspect: rawAspect), contentMode: .fit)
-    }
-
-    private var rawAspect: CGFloat {
-        ticket.photoAspect ?? (photo.size.height > 0 ? photo.size.width / photo.size.height : MarsTicketFace.aspect)
-    }
-
-    private var photoAspect: CGFloat {
-        CardMetrics.clampedPhotoAspect(rawAspect)
+        .aspectRatio(aspect, contentMode: .fit)
     }
 }
 

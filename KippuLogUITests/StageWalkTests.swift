@@ -1,6 +1,6 @@
 import XCTest
 
-/// Walks timeline → stage → flip → page → dismiss, attaching named
+/// Walks timeline → stage → page → dismiss, attaching named
 /// screenshots at every beat (exported via xcresulttool during dev).
 final class StageWalkTests: XCTestCase {
     override func setUpWithError() throws {
@@ -25,13 +25,6 @@ final class StageWalkTests: XCTestCase {
         XCTAssertTrue(hero.waitForExistence(timeout: 5))
         sleep(1)
         shot(app, "11-stage-front")
-
-        // Flip to the back face.
-        hero.tap()
-        sleep(1)
-        shot(app, "12-stage-back")
-        hero.tap()
-        sleep(1)
 
         // Page to the next ticket.
         app.swipeLeft()

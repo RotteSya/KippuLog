@@ -92,7 +92,11 @@ struct TicketStageView: View {
                         Label("編集", systemImage: "pencil")
                     }
                     ShareLink(
-                        item: TicketShareCard(ticket: ticket, photo: store.photo(for: ticket)),
+                        item: TicketShareCard(
+                            ticket: ticket,
+                            photo: store.photo(for: ticket),
+                            cutout: store.cutout(for: ticket)
+                        ),
                         preview: SharePreview("きっぷ — \(ticket.routeText)")
                     ) {
                         Label("共有", systemImage: "square.and.arrow.up")

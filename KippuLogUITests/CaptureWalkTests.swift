@@ -43,9 +43,44 @@ final class CaptureWalkTests: XCTestCase {
 
         // Open its stage — the hero is the real photo.
         entry.tap()
-        XCTAssertTrue(app.otherElements["stage-hero"].firstMatch.waitForExistence(timeout: 6))
+        let hero = app.otherElements["stage-hero"].firstMatch
+        XCTAssertTrue(hero.waitForExistence(timeout: 6))
         sleep(2)
         shot(app, "23-stage-photo-hero")
+
+        // Tap the photo → full-screen zoomable inspector.
+        hero.tap()
+        let closeButton = app.buttons["inspector-close"].firstMatch
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 6))
+        sleep(1)
+        shot(app, "24-photo-inspector")
+        closeButton.tap()
+        XCTAssertTrue(hero.waitForExistence(timeout: 6))
+    }
+
+    /// The angled-on-clutter fixture: flatten (or subject lift) must hand
+    /// back a clean borderless ticket, and the route must still parse.
+    @MainActor
+    func testAngledPhotoBecomesCleanObject() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTestReset",
+            "-uiTestImport", "/tmp/kippu_test_angled.png",
+        ]
+        app.launch()
+
+        let save = app.buttons["confirm-save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 18))
+        sleep(2)
+        shot(app, "25-confirm-angled")
+        XCTAssertTrue(app.textFields.matching(NSPredicate(format: "value CONTAINS '新大阪'")).count > 0
+                      || app.staticTexts["新大阪"].firstMatch.exists)
+        save.tap()
+
+        let entry = app.staticTexts["東京 → 新大阪"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 8))
+        sleep(2)
+        shot(app, "26-timeline-angled")
     }
 
     @MainActor

@@ -29,6 +29,10 @@ nonisolated struct Ticket: Identifiable, Codable, Equatable, Hashable {
     /// Aspect ratio (width / height) of the saved photo, so cards lay out
     /// without loading the image. Nil for samples / manual entries.
     var photoAspect: CGFloat?
+    /// Subject-lifted ticket (alpha PNG) when the photo carried background —
+    /// the ticket as a free-standing object. Nil when the scan is already
+    /// tight (the photo IS the ticket) or segmentation found nothing.
+    var cutoutFileName: String?
     var isSample = false
 
     /// 東京 → 京都, or just 尾道 for an entrance ticket.

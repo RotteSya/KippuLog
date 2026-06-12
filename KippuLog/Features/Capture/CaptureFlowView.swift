@@ -16,8 +16,10 @@ struct CaptureFlowView: View {
     @State private var phase = Phase.gathering
     @State private var pickerItem: PhotosPickerItem?
     @State private var scan: UIImage?
+    @State private var cutout: UIImage?
     @State private var draft = Ticket()
     @State private var ocrTask: Task<[OCRLine], Never>?
+    @State private var cutoutTask: Task<UIImage?, Never>?
     @State private var autoArmed = true
     @State private var shutterBusy = false
 
@@ -42,6 +44,7 @@ struct CaptureFlowView: View {
                 if let scan {
                     ConfirmTicketView(
                         scan: scan,
+                        cutout: cutout,
                         draft: $draft,
                         onSave: save,
                         onRetake: retake
@@ -237,11 +240,17 @@ struct CaptureFlowView: View {
 
     private func acquired(_ image: UIImage) async {
         camera.stop()
-        let flattened = await TicketRecognizer.flatten(image)
+        let (flattened, tight) = await TicketRecognizer.flatten(image)
         scan = flattened
+        cutout = nil
         draft = Ticket() // fresh seed — the gate's punch is forever
         ocrTask = Task.detached(priority: .userInitiated) {
             (try? await TicketRecognizer.recognizeLines(in: flattened)) ?? []
+        }
+        // A tight scan IS the ticket; otherwise lift the subject off its
+        // background while the gate ceremony plays.
+        cutoutTask = tight ? nil : Task.detached(priority: .userInitiated) {
+            await TicketRecognizer.liftSubject(flattened)
         }
         // Warm the gazetteer off-main while the gate plays.
         Task.detached(priority: .utility) { _ = StationIndex.shared }
@@ -253,6 +262,7 @@ struct CaptureFlowView: View {
     private func finishGate() {
         Task {
             let lines = await ocrTask?.value ?? []
+            cutout = await cutoutTask?.value
             var parsed = TicketTextParser.parse(ocrLines: lines)
             parsed.styleSeed = draft.styleSeed
             parsed.id = draft.id
@@ -264,12 +274,14 @@ struct CaptureFlowView: View {
     // MARK: Outcomes
 
     private func save() {
-        store.add(draft, photo: scan)
+        store.add(draft, photo: scan, cutout: cutout)
         dismiss()
     }
 
     private func retake() {
         scan = nil
+        cutout = nil
+        cutoutTask = nil
         draft = Ticket()
         autoArmed = true
         phase = .gathering

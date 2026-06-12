@@ -35,13 +35,16 @@ final class TicketStore {
 
     // MARK: Mutations
 
-    func add(_ ticket: Ticket, photo: UIImage? = nil) {
+    func add(_ ticket: Ticket, photo: UIImage? = nil, cutout: UIImage? = nil) {
         var ticket = ticket
         if let photo {
             ticket.photoFileName = savePhoto(photo, id: ticket.id)
             if photo.size.height > 0 {
                 ticket.photoAspect = photo.size.width / photo.size.height
             }
+        }
+        if let cutout {
+            ticket.cutoutFileName = saveCutout(cutout, id: ticket.id)
         }
         tickets.append(ticket)
         sortAndSave()
@@ -56,8 +59,9 @@ final class TicketStore {
 
     func remove(_ ticket: Ticket) {
         tickets.removeAll { $0.id == ticket.id }
-        if let name = ticket.photoFileName {
+        for name in [ticket.photoFileName, ticket.cutoutFileName].compactMap({ $0 }) {
             try? FileManager.default.removeItem(at: photosDirectory.appendingPathComponent(name))
+            imageCache.removeObject(forKey: name as NSString)
         }
         save()
     }
@@ -69,19 +73,63 @@ final class TicketStore {
 
     // MARK: Photos
 
+    private let imageCache = NSCache<NSString, UIImage>()
+
     func photo(for ticket: Ticket) -> UIImage? {
-        guard let name = ticket.photoFileName else { return nil }
-        return UIImage(contentsOfFile: photosDirectory.appendingPathComponent(name).path)
+        loadImage(named: ticket.photoFileName)
+    }
+
+    /// The subject-lifted ticket object, when one was produced at capture.
+    func cutout(for ticket: Ticket) -> UIImage? {
+        loadImage(named: ticket.cutoutFileName)
+    }
+
+    private func loadImage(named name: String?) -> UIImage? {
+        guard let name else { return nil }
+        if let cached = imageCache.object(forKey: name as NSString) { return cached }
+        guard let image = UIImage(contentsOfFile: photosDirectory.appendingPathComponent(name).path) else {
+            return nil
+        }
+        imageCache.setObject(image, forKey: name as NSString)
+        return image
     }
 
     private func savePhoto(_ image: UIImage, id: UUID) -> String? {
-        guard let data = image.jpegData(compressionQuality: 0.9) else { return nil }
+        let sized = Self.downscaled(image, maxDimension: 2400)
+        guard let data = sized.jpegData(compressionQuality: 0.9) else { return nil }
         let name = "\(id.uuidString).jpg"
         do {
             try data.write(to: photosDirectory.appendingPathComponent(name), options: .atomic)
             return name
         } catch {
             return nil
+        }
+    }
+
+    private func saveCutout(_ image: UIImage, id: UUID) -> String? {
+        let sized = Self.downscaled(image, maxDimension: 1600)
+        guard let data = sized.pngData() else { return nil }
+        let name = "\(id.uuidString)-cut.png"
+        do {
+            try data.write(to: photosDirectory.appendingPathComponent(name), options: .atomic)
+            return name
+        } catch {
+            return nil
+        }
+    }
+
+    /// Keep stored images at display resolution — decode stays cheap and
+    /// the timeline scrolls like silk.
+    private static func downscaled(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let largest = max(image.size.width, image.size.height)
+        guard largest > maxDimension, largest > 0 else { return image }
+        let scale = maxDimension / largest
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
         }
     }
 

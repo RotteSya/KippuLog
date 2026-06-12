@@ -3,13 +3,21 @@ import SwiftUI
 /// One spread in the magazine. A catalogue line floats above the plate
 /// (collector's number left, date right); below, the route in mincho
 /// with the fare on the same baseline, then the quiet caption.
+///
+/// The card itself is the zoom-transition source — tapping anywhere on the
+/// entry (or pinching the card outward) sends the *ticket* flying into its
+/// stage, not the surrounding text.
 struct TimelineEntry: View {
     let ticket: Ticket
     var number = 0
     var alignment: HorizontalAlignment = .leading
     var highlighted = false
+    let zoomNamespace: Namespace.ID
+    var onOpen: () -> Void = {}
 
     @State private var sweep: Double = -0.25
+    @State private var pinchScale: CGFloat = 1
+    @State private var pinchFired = false
 
     var body: some View {
         VStack(alignment: alignment, spacing: 0) {
@@ -20,6 +28,8 @@ struct TimelineEntry: View {
             TicketCard(ticket: ticket)
                 .lightSweep(progress: sweep)
                 .frame(maxWidth: plateWidth)
+                .matchedTransitionSource(id: ticket.id, in: zoomNamespace)
+                .scaleEffect(pinchScale, anchor: .center)
                 .scrollTransition(.interactive) { content, phase in
                     content
                         .offset(y: phase.value * -14)
@@ -69,6 +79,34 @@ struct TimelineEntry: View {
         }
         .frame(maxWidth: .infinity, alignment: frameAlignment)
         .contentShape(Rectangle())
+        .onTapGesture {
+            Haptic.play(.tick)
+            onOpen()
+        }
+        .simultaneousGesture(pinchToOpen)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("timeline-entry-\(ticket.routeText)")
+    }
+
+    /// Pinch a card outward and it grows in your fingers, then commits to
+    /// the stage — the timeline *is* zoomable.
+    private var pinchToOpen: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                let m = value.magnification
+                pinchScale = min(max(m, 0.96), 1.22)
+                if m > 1.16, !pinchFired {
+                    pinchFired = true
+                    Haptic.play(.tick)
+                    onOpen()
+                }
+            }
+            .onEnded { _ in
+                pinchFired = false
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                    pinchScale = 1
+                }
+            }
     }
 
     // MARK: Lines

@@ -103,6 +103,17 @@ final class InteractionTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["COLLECTED JOURNEYS"].waitForExistence(timeout: 6))
     }
 
+    @MainActor
+    func testPinchToOpenFromTimeline() throws {
+        let app = launchWithSamples()
+        let entry = app.otherElements["timeline-entry-新宿 → 箱根湯本"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 6))
+
+        // Pinch the card outward — the timeline zooms into the stage.
+        entry.pinch(withScale: 1.8, velocity: 1.6)
+        XCTAssertTrue(app.otherElements["stage-hero"].waitForExistence(timeout: 6))
+    }
+
     // MARK: Helpers
 
     /// Lazy timeline: swipe until the entry materializes and is tappable.
