@@ -167,5 +167,97 @@ func makeAngled() {
     savePNG(ctx, to: "/tmp/kippu_test_angled.png")
 }
 
+// ---------------------------------------------------------------------------
+// Fixture 3 — hard mode: small, slightly rotated, soft-focused green-stock
+// ticket with fare-zone names (東京都区内 → 京都市内). The real-world case
+// that breaks naive parsing.
+// ---------------------------------------------------------------------------
+
+func hardTicketImage(width: Int, height: Int) -> CGImage {
+    let ctx = makeContext(width, height)
+    let w = CGFloat(width), h = CGFloat(height)
+
+    let paper = CGPath(
+        roundedRect: CGRect(x: 0, y: 0, width: w, height: h),
+        cornerWidth: w * 0.012, cornerHeight: w * 0.012, transform: nil
+    )
+    ctx.addPath(paper)
+    ctx.setFillColor(CGColor(red: 0.90, green: 0.93, blue: 0.88, alpha: 1)) // JR green stock
+    ctx.fillPath()
+
+    ctx.setStrokeColor(CGColor(red: 0.45, green: 0.62, blue: 0.55, alpha: 0.30))
+    ctx.setLineWidth(1.1)
+    for row in 0..<20 {
+        let y = CGFloat(row) / 20 * h
+        ctx.move(to: CGPoint(x: 0, y: y))
+        var x: CGFloat = 0
+        while x < w {
+            ctx.addLine(to: CGPoint(x: x, y: y + sin(x / w * .pi * 6 + CGFloat(row)) * h * 0.004))
+            x += 12
+        }
+        ctx.strokePath()
+    }
+
+    let ink = CGColor(red: 0.14, green: 0.12, blue: 0.10, alpha: 1)
+    let soft = CGColor(red: 0.34, green: 0.31, blue: 0.27, alpha: 1)
+
+    draw(text: "乗　車　券", size: h * 0.075, weight: "W6",
+         at: CGPoint(x: w / 2, y: h * 0.86), in: ctx, color: ink, tracking: 3)
+    draw(text: "東京都区内 → 京都市内", size: h * 0.105, weight: "W6",
+         at: CGPoint(x: w / 2, y: h * 0.62), in: ctx, color: ink, tracking: 1)
+    draw(text: "６月２日から４日間有効", size: h * 0.062, weight: "W3",
+         at: CGPoint(x: w / 2, y: h * 0.42), in: ctx, color: ink)
+    draw(text: "￥８，９１０", size: h * 0.090, weight: "W6",
+         at: CGPoint(x: w / 2, y: h * 0.25), in: ctx, color: ink, tracking: 2)
+    draw(text: "2026.-6.-2 東京駅ＶＦ１発行　下車前途無効", size: h * 0.045, weight: "W3",
+         at: CGPoint(x: w / 2, y: h * 0.08), in: ctx, color: soft)
+
+    return ctx.makeImage()!
+}
+
+/// Soften an image (simulates a slightly missed focus).
+func soften(_ image: CGImage, factor: CGFloat) -> CGImage {
+    let smallW = Int(CGFloat(image.width) * factor)
+    let smallH = Int(CGFloat(image.height) * factor)
+    let small = makeContext(smallW, smallH)
+    small.interpolationQuality = .high
+    small.draw(image, in: CGRect(x: 0, y: 0, width: smallW, height: smallH))
+    let back = makeContext(image.width, image.height)
+    back.interpolationQuality = .high
+    back.draw(small.makeImage()!, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+    return back.makeImage()!
+}
+
+func makeHard() {
+    let W = 2400, H = 1800
+    let ctx = makeContext(W, H)
+
+    // Dim desk.
+    ctx.setFillColor(CGColor(red: 0.30, green: 0.26, blue: 0.22, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+    var rng = SystemRandomNumberGenerator()
+    for _ in 0..<400 {
+        ctx.setFillColor(CGColor(gray: .random(in: 0.18...0.34, using: &rng), alpha: 0.25))
+        ctx.fill(CGRect(x: .random(in: 0...CGFloat(W), using: &rng),
+                        y: .random(in: 0...CGFloat(H), using: &rng),
+                        width: .random(in: 2...10, using: &rng),
+                        height: .random(in: 2...10, using: &rng)))
+    }
+
+    let crisp = hardTicketImage(width: 1100, height: 740)
+    let blurry = soften(crisp, factor: 0.45)
+
+    ctx.saveGState()
+    ctx.translateBy(x: CGFloat(W) / 2 - 60, y: CGFloat(H) / 2 + 20)
+    ctx.rotate(by: 4 * .pi / 180)
+    ctx.setShadow(offset: CGSize(width: 6, height: -20), blur: 42,
+                  color: CGColor(gray: 0, alpha: 0.5))
+    ctx.draw(blurry, in: CGRect(x: -550, y: -370, width: 1100, height: 740))
+    ctx.restoreGState()
+
+    savePNG(ctx, to: "/tmp/kippu_test_hard.png")
+}
+
 makeStraight()
 makeAngled()
+makeHard()

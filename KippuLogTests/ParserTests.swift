@@ -138,6 +138,82 @@ struct ParserTests {
         #expect(t.fromStation == "京都")
         #expect(t.toStation == "大阪")
     }
+
+    // MARK: Real-world OCR carnage
+
+    @Test func fusedRouteWithZoneNames() {
+        // The arrow glyph vanished entirely; both endpoints fused.
+        let lines = ["乗車券", "東京都区内京都市内", "￥８，９１０"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "東京都区内")
+        #expect(t.toStation == "京都市内")
+    }
+
+    @Test func fusedPlainStations() {
+        let lines = ["特急券", "新宿小田原", "はこね５３号"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "新宿")
+        #expect(t.toStation == "小田原")
+    }
+
+    @Test func keywordRidesAlongTheDeparture() {
+        // OCR merged the title into the route line.
+        let lines = ["乗車券 東京 → 京都", "￥８，９１０"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "東京")
+        #expect(t.toStation == "京都")
+    }
+
+    @Test func yukiSuffixOnArrival() {
+        let lines = ["乗車券", "長野 → 松本ゆき", "￥１，２００"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "長野")
+        #expect(t.toStation == "松本")
+    }
+
+    @Test func zoneNameHealsBlurredCity() {
+        // 亰 misread for 京 inside a fare-zone label.
+        let lines = ["乗車券", "東亰都区内 → 大阪市内", "￥８，９１０"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "東京都区内")
+        #expect(t.toStation == "大阪市内")
+    }
+
+    @Test func distanceTwoSnapForLongNames() {
+        // Two glyphs wrong in a four-character name (blurry shot).
+        let lines = ["特急券", "柬武目光 → 浅草", "けごん１３号"]
+        let t = TicketTextParser.parse(lines: lines, now: reference)
+        #expect(t.fromStation == "東武日光")
+        #expect(t.toStation == "浅草")
+    }
+
+    @Test func issuerLineNeverVotes() {
+        // Only one route station + the issuing station; the issuer's 東京
+        // must not become an endpoint.
+        let lines = [
+            OCRLine(text: "乗車券", box: rect(0.1, 0.85, 0.3, 0.05)),
+            OCRLine(text: "大阪", box: rect(0.10, 0.60, 0.28, 0.11)),
+            OCRLine(text: "神戸", box: rect(0.10, 0.45, 0.28, 0.11)),
+            OCRLine(text: "2026.6.2 東京駅VF1発行", box: rect(0.1, 0.10, 0.6, 0.04)),
+        ]
+        let t = TicketTextParser.parse(ocrLines: lines, now: reference)
+        #expect(t.fromStation == "大阪")
+        #expect(t.toStation == "神戸")
+    }
+
+    @Test func anyTwoStationsLastResort() {
+        // Stations scattered across non-adjacent lines with junk between.
+        let lines = [
+            OCRLine(text: "新幹線特急券", box: rect(0.15, 0.88, 0.6, 0.05)),
+            OCRLine(text: "東京", box: rect(0.10, 0.66, 0.24, 0.12)),
+            OCRLine(text: "のぞみ３１号", box: rect(0.30, 0.48, 0.4, 0.05)),
+            OCRLine(text: "新大阪", box: rect(0.55, 0.30, 0.34, 0.12)),
+            OCRLine(text: "￥１４，７２０", box: rect(0.3, 0.15, 0.4, 0.06)),
+        ]
+        let t = TicketTextParser.parse(ocrLines: lines, now: reference)
+        #expect(t.fromStation == "東京")
+        #expect(t.toStation == "新大阪")
+    }
 }
 
 struct StoreLogicTests {
