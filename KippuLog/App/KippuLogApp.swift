@@ -8,6 +8,11 @@ struct KippuLogApp: App {
         WindowGroup {
             RootView()
                 .environment(store)
+                // Deterministic appearance for screenshot sweeps on cloned
+                // simulators (which don't inherit `simctl ui appearance`).
+                .preferredColorScheme(
+                    ProcessInfo.processInfo.arguments.contains("-uiDark") ? .dark : nil
+                )
         }
     }
 }

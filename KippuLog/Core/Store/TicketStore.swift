@@ -13,13 +13,16 @@ final class TicketStore {
 
     private let directory: URL
     private let photosDirectory: URL
+    private let thumbsDirectory: URL
     private var fileURL: URL { directory.appendingPathComponent("tickets.json") }
 
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         directory = base.appendingPathComponent("KippuLog", isDirectory: true)
         photosDirectory = directory.appendingPathComponent("photos", isDirectory: true)
+        thumbsDirectory = directory.appendingPathComponent("thumbs", isDirectory: true)
         try? FileManager.default.createDirectory(at: photosDirectory, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: thumbsDirectory, withIntermediateDirectories: true)
 
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-uiTestReset") {
@@ -61,7 +64,9 @@ final class TicketStore {
         tickets.removeAll { $0.id == ticket.id }
         for name in [ticket.photoFileName, ticket.cutoutFileName].compactMap({ $0 }) {
             try? FileManager.default.removeItem(at: photosDirectory.appendingPathComponent(name))
+            try? FileManager.default.removeItem(at: thumbsDirectory.appendingPathComponent("thumb-" + name))
             imageCache.removeObject(forKey: name as NSString)
+            imageCache.removeObject(forKey: ("thumb-" + name) as NSString)
         }
         save()
     }
@@ -82,6 +87,27 @@ final class TicketStore {
     /// The subject-lifted ticket object, when one was produced at capture.
     func cutout(for ticket: Ticket) -> UIImage? {
         loadImage(named: ticket.cutoutFileName)
+    }
+
+    /// Album-sized image (≤420px), generated lazily and kept on disk —
+    /// dozens of minis must scroll like silk. Nil → render the plate live.
+    func thumbnail(for ticket: Ticket) -> UIImage? {
+        let isCutout = ticket.cutoutFileName != nil
+        guard let sourceName = ticket.cutoutFileName ?? ticket.photoFileName else { return nil }
+        let thumbName = "thumb-" + sourceName
+        if let cached = imageCache.object(forKey: thumbName as NSString) { return cached }
+        let url = thumbsDirectory.appendingPathComponent(thumbName)
+        if let onDisk = UIImage(contentsOfFile: url.path) {
+            imageCache.setObject(onDisk, forKey: thumbName as NSString)
+            return onDisk
+        }
+        guard let full = isCutout ? cutout(for: ticket) : photo(for: ticket) else { return nil }
+        let thumb = Self.downscaled(full, maxDimension: 420)
+        // Cutouts carry alpha — PNG; plain scans stay JPEG.
+        let data = isCutout ? thumb.pngData() : thumb.jpegData(compressionQuality: 0.85)
+        try? data?.write(to: url, options: .atomic)
+        imageCache.setObject(thumb, forKey: thumbName as NSString)
+        return thumb
     }
 
     private func loadImage(named name: String?) -> UIImage? {
@@ -162,6 +188,23 @@ final class TicketStore {
 
     var totalSpent: Int {
         tickets.compactMap(\.price).reduce(0, +)
+    }
+
+    /// Tickets grouped year → month, newest first — the album's spreads.
+    var yearGroups: [(year: Int, months: [(month: DateComponents, tickets: [Ticket])])] {
+        let calendar = Calendar(identifier: .gregorian)
+        let byYear = Dictionary(grouping: tickets) { calendar.component(.year, from: $0.sortDate) }
+        return byYear
+            .sorted { $0.key > $1.key }
+            .map { year, yearTickets in
+                let byMonth = Dictionary(grouping: yearTickets) {
+                    calendar.dateComponents([.year, .month], from: $0.sortDate)
+                }
+                let months = byMonth
+                    .sorted { ($0.key.month ?? 0) > ($1.key.month ?? 0) }
+                    .map { (month: $0.key, tickets: $0.value.sorted { $0.sortDate > $1.sortDate }) }
+                return (year: year, months: months)
+            }
     }
 
     /// Tickets grouped by month of travel, newest month first.

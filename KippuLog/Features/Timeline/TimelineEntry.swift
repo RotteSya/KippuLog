@@ -28,7 +28,7 @@ struct TimelineEntry: View {
             TicketCard(ticket: ticket)
                 .lightSweep(progress: sweep)
                 .frame(maxWidth: plateWidth)
-                .matchedTransitionSource(id: ticket.id, in: zoomNamespace)
+                .matchedTransitionSource(id: "t-\(ticket.id)", in: zoomNamespace)
                 .scaleEffect(pinchScale, anchor: .center)
                 .scrollTransition(.interactive) { content, phase in
                     content

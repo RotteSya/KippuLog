@@ -7,18 +7,41 @@ struct TimelineView: View {
     @Environment(TicketStore.self) private var store
     @Namespace private var zoomNamespace
     @State private var selectedTicket: Ticket?
+    @State private var zoomSourceKey = ""
     @State private var showCapture = false
+    @State private var showAlbum = ProcessInfo.processInfo.arguments.contains("-uiTestAlbum")
+    @State private var pinchLive: CGFloat = 1
+    @State private var albumPinchLive: CGFloat = 1
+    @State private var jumpTargetID: UUID?
     @State private var highlightID: UUID?
     @State private var droppedImage: UIImage?
     @State private var arrived = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                if store.tickets.isEmpty {
-                    EmptyStateView()
+            ZStack {
+                if showAlbum {
+                    AlbumView(
+                        zoomNamespace: zoomNamespace,
+                        onOpen: { ticket in
+                            zoomSourceKey = "a-\(ticket.id)"
+                            selectedTicket = ticket
+                        },
+                        onJumpMonth: jumpToMonth
+                    )
+                    .scaleEffect(albumPinchLive)
+                    .simultaneousGesture(albumPinchOpen)
+                    .transition(.scale(scale: 1.12).combined(with: .opacity))
                 } else {
-                    magazine
+                    Group {
+                        if store.tickets.isEmpty {
+                            EmptyStateView()
+                        } else {
+                            magazine
+                        }
+                    }
+                    .scaleEffect(pinchLive)
+                    .transition(.scale(scale: 0.88).combined(with: .opacity))
                 }
             }
             .opacity(arrived ? 1 : 0)
@@ -40,9 +63,15 @@ struct TimelineView: View {
             .navigationDestination(item: $selectedTicket) { ticket in
                 TicketStageView(selection: $selectedTicket)
                     .navigationTransition(.zoom(
-                        sourceID: selectedTicket?.id ?? ticket.id,
+                        sourceID: zoomSourceKey.isEmpty ? "t-\(ticket.id)" : zoomSourceKey,
                         in: zoomNamespace
                     ))
+            }
+            .onChange(of: selectedTicket) { old, new in
+                // Stage paging: keep the zoom anchored to the right card in
+                // whichever shelf is showing.
+                guard old != nil, let new else { return }
+                zoomSourceKey = (showAlbum ? "a-" : "t-") + new.id.uuidString
             }
         }
         .overlay(alignment: .bottom) {
@@ -69,6 +98,65 @@ struct TimelineView: View {
         }
     }
 
+    // MARK: Album ↔ magazine bridge
+
+    /// Pinch the magazine closed → the album. Direction-split with the
+    /// per-card pinch-open (which only listens above 1×).
+    private var magazinePinchClose: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                guard value.magnification < 1 else { return }
+                pinchLive = max(0.86, value.magnification)
+            }
+            .onEnded { value in
+                if value.magnification < 0.92 {
+                    Haptic.play(.page)
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+                        showAlbum = true
+                        pinchLive = 1
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        pinchLive = 1
+                    }
+                }
+            }
+    }
+
+    /// Pinch the album open → back into the magazine.
+    private var albumPinchOpen: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                guard value.magnification > 1 else { return }
+                albumPinchLive = min(1.12, value.magnification)
+            }
+            .onEnded { value in
+                if value.magnification > 1.07 {
+                    Haptic.play(.page)
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+                        showAlbum = false
+                        albumPinchLive = 1
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        albumPinchLive = 1
+                    }
+                }
+            }
+    }
+
+    /// A month stamp in the album → the magazine, opened to that month.
+    private func jumpToMonth(_ month: DateComponents) {
+        let calendar = Calendar(identifier: .gregorian)
+        let target = store.tickets.first {
+            calendar.dateComponents([.year, .month], from: $0.sortDate) == month
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+            showAlbum = false
+        }
+        jumpTargetID = target?.id
+    }
+
     // MARK: Magazine
 
     private var magazine: some View {
@@ -92,11 +180,20 @@ struct TimelineView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .simultaneousGesture(magazinePinchClose)
             .onChange(of: selectedTicket) { old, new in
                 // Paging inside the stage: keep the shelf positioned so the
                 // return zoom lands on the visible plate.
-                guard old != nil, let new else { return }
+                guard old != nil, let new, !showAlbum else { return }
                 proxy.scrollTo(new.id, anchor: .center)
+            }
+            .onChange(of: jumpTargetID) { _, target in
+                guard let target else { return }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(80))
+                    proxy.scrollTo(target, anchor: .top)
+                    jumpTargetID = nil
+                }
             }
             .onChange(of: store.lastAddedID) { _, new in
                 // A fresh ticket just punched in — walk to it and let the
@@ -186,7 +283,10 @@ struct TimelineView: View {
                     alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
                     highlighted: highlightID == ticket.id,
                     zoomNamespace: zoomNamespace,
-                    onOpen: { selectedTicket = ticket }
+                    onOpen: {
+                        zoomSourceKey = "t-\(ticket.id)"
+                        selectedTicket = ticket
+                    }
                 )
                 .id(ticket.id)
                 .padding(.horizontal, 26)
