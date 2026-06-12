@@ -100,7 +100,8 @@ Rendered purely from data — used only when there is no photo:
 | detail dismiss | pinch-out or drag; card returns to its shelf |
 | capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket leans back, feeds, squishes, gets bitten |
 | reveal | the raw frame recedes and blurs; the ticket lifts into the lamp; the form-desk rises |
-| delete | ink dissolve shader — the ticket scatters to sumi dust |
+| keyboard | the ticket steps aside; the desk takes the whole room; save never sinks below the keys |
+| delete | 改札回収 — the card tears into strips that flutter and fall (shredFall layerEffect) |
 | scroll | subtle parallax + light sweep across cards |
 
 ## Haptics

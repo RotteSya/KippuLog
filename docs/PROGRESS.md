@@ -2,6 +2,24 @@
 
 Running build log. Newest first.
 
+## 2026-06-12 — rage-quit pass three: recognition, keyboard, shred
+
+- [x] OCR route detection survives real carnage: fused endpoints
+      (東京都区内京都市内), keyword riders (乗車券東京), まで/ゆき strips,
+      issuer-line exclusion, any-two-stations fallback by print height,
+      zone city healing (東亰都区内→東京都区内), distance-2 snap for 4+
+      chars with an OCR-lookalike confusion table (亰→京 beats 亰→上).
+      Hard-mode fixture (soft-focus green stock, dim desk) passes e2e.
+- [x] Keyboard choreography: focusing a field collapses the
+      reveal/preview, the desk takes everything above the keys, save
+      stays hittable (asserted in UITest). Preview springs key on kind —
+      keystrokes schedule no animations.
+- [x] Delete = 改札回収: shredFall layerEffect (13 hashed strips,
+      gravity + flutter + shear, inked torn edges, late fade), punch +
+      stamp haptics, page contents clear beneath. Mid-fall frames
+      verified.
+- [x] Full suite green; 30 unit + UI walks incl. keyboard-up confirm.
+
 ## 2026-06-12 — borderless objects + true zoom
 
 X-feedback pass two: the photo mat read as a cheap frame, the zoom didn't
