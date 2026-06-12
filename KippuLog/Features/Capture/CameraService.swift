@@ -8,11 +8,18 @@ import Vision
 final class CameraService {
     enum Availability { case unknown, ready, denied, missing }
 
+    /// How long the quad must hold still before the gate fires on its own.
+    /// The viewfinder draws this very window as the closing vermilion loop.
+    static let steadyTarget: TimeInterval = 0.9
+
     private(set) var availability: Availability = .unknown
     /// Detected ticket quad — normalized image coords, origin top-left —
     /// plus the (portrait) buffer aspect, smoothed for the guide overlay.
     private(set) var guideQuad: [CGPoint]?
     private(set) var bufferAspect: CGFloat = 9.0 / 16.0
+    /// When the quad started holding still — the viewfinder animates the
+    /// countdown from this instant.
+    private(set) var steadySince: Date?
     /// True once the quad has held still long enough to auto-capture.
     private(set) var quadSteady = false
 
@@ -25,11 +32,20 @@ final class CameraService {
     private var videoDelegate: VideoTap?
     private var photoDelegate: PhotoTap?
     private var rawQuad: [CGPoint]?
-    private var steadySince: Date?
+    private var lastQuadAt: Date?
 
     // MARK: Lifecycle
 
     func start() async {
+        // Already configured (e.g. coming back from a retake): the session
+        // was stopped, not torn down — just run it again.
+        if availability == .ready {
+            nonisolated(unsafe) let session = session
+            sessionQueue.async {
+                if !session.isRunning { session.startRunning() }
+            }
+            return
+        }
         guard availability == .unknown else { return }
         guard AVCaptureDevice.default(for: .video) != nil else {
             availability = .missing
@@ -117,12 +133,19 @@ final class CameraService {
     private func ingest(quad: [CGPoint]?, aspect: CGFloat) {
         bufferAspect = aspect
         guard let quad else {
+            // Detection flickers frame to frame; hold the last lock briefly
+            // so the guide doesn't fly home over a single missed frame.
+            if let lastQuadAt, Date.now.timeIntervalSince(lastQuadAt) < 0.45 {
+                return
+            }
             guideQuad = nil
             rawQuad = nil
+            lastQuadAt = nil
             steadySince = nil
             quadSteady = false
             return
         }
+        lastQuadAt = .now
         // Smooth toward the new quad for a calm guide.
         if let old = guideQuad, old.count == 4 {
             guideQuad = zip(old, quad).map { o, n in
@@ -138,7 +161,7 @@ final class CameraService {
                 .max() ?? 1
             if drift < 0.012 {
                 if let since = steadySince {
-                    quadSteady = Date.now.timeIntervalSince(since) > 0.9
+                    quadSteady = Date.now.timeIntervalSince(since) > Self.steadyTarget
                 } else {
                     steadySince = .now
                 }

@@ -308,8 +308,56 @@ func makeShadow() {
     savePNG(ctx, to: "/tmp/kippu_test_shadow.png")
 }
 
+// ---------------------------------------------------------------------------
+// Fixture 6 — portrait shot: the phone was turned sideways, so the ticket
+// stands vertical in a portrait frame. flatten must right it — the scan
+// comes back landscape and readable.
+// ---------------------------------------------------------------------------
+
+func makeVertical() {
+    let W = 1800, H = 2400
+    let ctx = makeContext(W, H)
+    ctx.setFillColor(CGColor(red: 0.16, green: 0.15, blue: 0.14, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+
+    let ticket = ticketImage(width: 1560, height: 1040)
+    ctx.saveGState()
+    ctx.translateBy(x: CGFloat(W) / 2, y: CGFloat(H) / 2)
+    ctx.rotate(by: .pi / 2)
+    ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 60,
+                  color: CGColor(gray: 0, alpha: 0.55))
+    ctx.draw(ticket, in: CGRect(x: -780, y: -520, width: 1560, height: 1040))
+    ctx.restoreGState()
+    savePNG(ctx, to: "/tmp/kippu_test_vertical.png")
+}
+
+// ---------------------------------------------------------------------------
+// Fixture 7 — upside down: the ticket lies rotated 180°. The quad is a
+// clean landscape rectangle either way, so only OCR can tell — flatten
+// must flip it.
+// ---------------------------------------------------------------------------
+
+func makeUpsideDown() {
+    let W = 2400, H = 1800
+    let ctx = makeContext(W, H)
+    ctx.setFillColor(CGColor(red: 0.16, green: 0.15, blue: 0.14, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+
+    let ticket = ticketImage(width: 1560, height: 1040)
+    ctx.saveGState()
+    ctx.translateBy(x: CGFloat(W) / 2, y: CGFloat(H) / 2)
+    ctx.rotate(by: .pi)
+    ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 60,
+                  color: CGColor(gray: 0, alpha: 0.55))
+    ctx.draw(ticket, in: CGRect(x: -780, y: -520, width: 1560, height: 1040))
+    ctx.restoreGState()
+    savePNG(ctx, to: "/tmp/kippu_test_updown.png")
+}
+
 makeStraight()
 makeAngled()
 makeHard()
 makePair()
 makeShadow()
+makeVertical()
+makeUpsideDown()

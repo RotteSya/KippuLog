@@ -13,7 +13,10 @@ ticket gate.
    with a paper-thickness edge light (`ScanObject`), or — when the photo
    carries background — the subject-lifted silhouette resting directly on
    the page, its shadow tracing its own alpha. No mats, no strokes, no
-   borders. The app *reads* the ticket to fill in the journey but never
+   borders. And always reading right side up: EXIF is baked at
+   acquisition, and every scan/cutout is righted by the print itself
+   (each OCR line's glyph-run vector votes; `rightSideUp`), however the
+   photo was held. The app *reads* the ticket to fill in the journey but never
    replaces the photo with a drawing; the rendered plate (`TicketArtView`)
    survives only as the fallback for photo-less tickets (samples, manual
    entries), wearing the identical `studioFrame`.
@@ -99,8 +102,11 @@ Rendered purely from data — used only when there is no photo:
 | detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
 | detail browse | horizontal paging, cards swap with bouncy springs |
 | detail dismiss | pinch-out or drag; card returns to its shelf |
-| capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket leans back, feeds, squishes, gets bitten |
-| reveal | the raw frame recedes and blurs; the ticket lifts into the lamp; the form-desk rises |
+| viewfinder | one living guide, three acts: corner grips breathe around a MARS window → fly onto the detected ticket's corners (veil re-cuts itself around the quad, one animatable `Quad4` drives every shape) → a vermilion loop draws from the top centre both ways across the hold-still window and seals as the gate fires; the shutter dial mirrors the same clock |
+| capture moment | white blink, the frame freezes, the room goes near-black around the ticket — flatten and orientation work under the cover |
+| capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket rises from below the frame, leans back, feeds, squishes, gets bitten — the head flinches and the punched chad flutters out of the slot |
+| handoff | after the reading light, the ticket glides to the exact spot the confirm reveal occupies and the crossfade is a handoff, not a jump; the raw frame still wears the punch, which heals inside the lift |
+| reveal | the raw frame recedes and blurs; the ticket lifts into the lamp; the form-desk rises from fully below the frame |
 | keyboard | the ticket steps aside; the desk takes the whole room; save never sinks below the keys |
 | delete | 改札回収 — the card tears into strips that flutter and fall (shredFall layerEffect) |
 | scroll | subtle parallax + light sweep across cards |

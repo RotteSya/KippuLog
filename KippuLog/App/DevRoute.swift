@@ -6,6 +6,7 @@ enum DevRoute: String {
     case gallery
     case gallery2
     case hero
+    case viewfinder
 
     static let current: DevRoute? = {
         let args = ProcessInfo.processInfo.arguments

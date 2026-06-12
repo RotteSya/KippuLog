@@ -58,6 +58,126 @@ nonisolated struct FlattenResult: Sendable {
 /// Vision front-end: reads the ticket's text (with geometry) and finds its
 /// outline. Everything here is off-main and stateless.
 nonisolated enum TicketRecognizer {
+    /// Shared render context for the rotation/normalization paths.
+    private static let ciContext = CIContext()
+
+    // MARK: Orientation
+
+    /// Bakes a UIImage's EXIF orientation into its pixels. Camera and
+    /// photo-library images carry rotation as a *tag*; `cgImage` ignores
+    /// it, so every Vision stage downstream would otherwise see sideways
+    /// pixels for any portrait shot.
+    static func normalized(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up, let cgImage = image.cgImage else { return image }
+        let oriented = CIImage(cgImage: cgImage).oriented(exifOrientation(of: image))
+        guard let baked = ciContext.createCGImage(oriented, from: oriented.extent) else { return image }
+        return UIImage(cgImage: baked)
+    }
+
+    private static func exifOrientation(of image: UIImage) -> CGImagePropertyOrientation {
+        switch image.imageOrientation {
+        case .up: .up
+        case .upMirrored: .upMirrored
+        case .down: .down
+        case .downMirrored: .downMirrored
+        case .left: .left
+        case .leftMirrored: .leftMirrored
+        case .right: .right
+        case .rightMirrored: .rightMirrored
+        @unknown default: .up
+        }
+    }
+
+    /// Rights a scan so its print reads naturally. Japanese tickets are
+    /// landscape; a portrait scan means the photo was taken sideways, and
+    /// a landscape one can still be upside down.
+    ///
+    /// Vision reads rotated text happily, so recognition *confidence*
+    /// cannot pick an orientation — but each recognized line's tight quad
+    /// runs along its own glyphs, and the net of those vectors says
+    /// exactly which way the print lies. One small OCR pass, one verdict.
+    ///
+    /// `expectTicket: true` (tight scans, cutouts) rotates on a modest
+    /// margin; `false` (raw photos, where rotating changes a real photo)
+    /// demands clear dominance.
+    static func rightSideUp(_ image: UIImage, expectTicket: Bool) async -> UIImage {
+        guard let cgImage = image.cgImage else { return image }
+        let verdict = await printDirection(in: proxy(cgImage))
+        let dominance: Double = expectTicket ? 1.25 : 1.6
+        let floor: Double = expectTicket ? 6 : 14
+        guard verdict.weight > floor else { return image }
+
+        let turn: CGImagePropertyOrientation
+        if abs(verdict.x) >= abs(verdict.y) * dominance {
+            if verdict.x >= 0 { return image }   // already reads left→right
+            turn = .down
+        } else if abs(verdict.y) >= abs(verdict.x) * dominance {
+            // Vision coords are y-up: print running toward +y means the
+            // image content is turned 90° CW → undo with a CCW turn.
+            turn = verdict.y >= 0 ? .right : .left
+        } else {
+            return image                          // ambiguous — leave it
+        }
+        guard let righted = rotated(cgImage, turn) else { return image }
+        return UIImage(cgImage: righted)
+    }
+
+    /// Net reading direction of the print, in Vision's normalized space
+    /// (origin bottom-left, y up): the confidence-and-length weighted sum
+    /// of every recognized line's glyph-run vector.
+    private static func printDirection(in cgImage: CGImage) async -> (x: Double, y: Double, weight: Double) {
+        var request = RecognizeTextRequest()
+        request.recognitionLanguages = [
+            Locale.Language(identifier: "ja-JP"),
+            Locale.Language(identifier: "en-US"),
+        ]
+        request.usesLanguageCorrection = false
+        let observations = (try? await request.perform(on: cgImage)) ?? []
+        var x = 0.0, y = 0.0, weight = 0.0
+        for observation in observations {
+            guard let top = observation.topCandidates(1).first else { continue }
+            let confidence = Double(top.confidence)
+            guard confidence > 0.2 else { continue }
+            guard let run = try? top.boundingBox(for: top.string.startIndex..<top.string.endIndex)
+            else { continue }
+            let dx = Double(run.topRight.x - run.topLeft.x)
+            let dy = Double(run.topRight.y - run.topLeft.y)
+            let length = (dx * dx + dy * dy).squareRoot()
+            guard length > 0.0005 else { continue }
+            let w = confidence * Double(max(top.string.count, 1))
+            x += dx / length * w
+            y += dy / length * w
+            weight += w
+        }
+        return (x, y, weight)
+    }
+
+    /// Quarter-turn rotation, exact (no resampling beyond the transform).
+    private static func rotated(_ cgImage: CGImage, _ turn: CGImagePropertyOrientation) -> CGImage? {
+        guard turn != .up else { return cgImage }
+        let oriented = CIImage(cgImage: cgImage).oriented(turn)
+        return ciContext.createCGImage(oriented, from: oriented.extent)
+    }
+
+    /// Small working copy for orientation scoring — OCR at ~800px is as
+    /// decisive as full size and an order of magnitude faster.
+    private static func proxy(_ cgImage: CGImage, maxDimension: CGFloat = 800) -> CGImage {
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
+        let scale = maxDimension / max(width, height)
+        guard scale < 1 else { return cgImage }
+        let w = Int(width * scale), h = Int(height * scale)
+        guard let context = CGContext(
+            data: nil, width: w, height: h,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return cgImage }
+        context.interpolationQuality = .medium
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return context.makeImage() ?? cgImage
+    }
+
     /// Recognized lines with bounding boxes, top-to-bottom as printed.
     static func recognizeLines(in image: UIImage) async throws -> [OCRLine] {
         guard let cgImage = image.cgImage else { return [] }
@@ -176,11 +296,13 @@ nonisolated enum TicketRecognizer {
     /// (first-pass, original image space) feeds the manual corner editor.
     static func flatten(_ image: UIImage) async -> FlattenResult {
         guard let first = await detectQuad(in: image) else {
-            return FlattenResult(image: image, tight: false, quad: nil)
+            let righted = await rightSideUp(image, expectTicket: false)
+            return FlattenResult(image: righted, tight: false, quad: nil)
         }
         let quad = TicketQuad(observation: first)
         guard let pass1 = applyQuad(image, quad: quad, inset: 0.012) else {
-            return FlattenResult(image: image, tight: false, quad: quad)
+            let righted = await rightSideUp(image, expectTicket: false)
+            return FlattenResult(image: righted, tight: false, quad: quad)
         }
 
         // Second pass: shave any one-sided residue.
@@ -189,10 +311,12 @@ nonisolated enum TicketRecognizer {
             let area = r.width * r.height
             if area > 0.60, area < 0.97,
                let pass2 = applyQuad(pass1, quad: TicketQuad(observation: second), inset: 0.004) {
-                return FlattenResult(image: pass2, tight: true, quad: quad)
+                let righted = await rightSideUp(pass2, expectTicket: true)
+                return FlattenResult(image: righted, tight: true, quad: quad)
             }
         }
-        return FlattenResult(image: pass1, tight: true, quad: quad)
+        let righted = await rightSideUp(pass1, expectTicket: true)
+        return FlattenResult(image: righted, tight: true, quad: quad)
     }
 
     /// Lifts the ticket off its background — Photos-style subject
@@ -230,7 +354,9 @@ nonisolated enum TicketRecognizer {
         // a shadow blob doesn't — reject those rather than mount them.
         guard alphaCoverage(cutout) >= 0.70 else { return nil }
 
-        return UIImage(cgImage: cutout)
+        // The cutout *is* the ticket — mount it reading right side up,
+        // however it lay on the table.
+        return await rightSideUp(UIImage(cgImage: cutout), expectTicket: true)
     }
 
     /// Fraction of opaque pixels, sampled at 48×48.

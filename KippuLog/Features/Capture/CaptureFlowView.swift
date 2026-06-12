@@ -25,6 +25,12 @@ struct CaptureFlowView: View {
     @State private var cutoutTask: Task<UIImage?, Never>?
     @State private var autoArmed = true
     @State private var shutterBusy = false
+    /// Shutter blink — peaks the instant the photo is taken, decays over
+    /// the cut into the gate so the phase swap hides inside it.
+    @State private var flash: Double = 0
+    /// The captured frame, frozen over the live feed while flatten works.
+    @State private var frozenStill: UIImage?
+    @State private var hadLock = false
 
     enum Phase { case gathering, gate, confirm }
 
@@ -45,6 +51,9 @@ struct CaptureFlowView: View {
                 }
             case .confirm:
                 if let scan {
+                    // Plain crossfade: the gate parks the ticket exactly
+                    // where the reveal shows it, so the handoff must not
+                    // slide — the desk below does its own rising.
                     ConfirmTicketView(
                         scan: scan,
                         cutout: cutout,
@@ -53,11 +62,17 @@ struct CaptureFlowView: View {
                         onRetake: retake,
                         onAdjust: original == nil ? nil : { showQuadEditor = true }
                     )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.opacity)
                 }
             }
+
+            // The shutter blink — above every phase so the viewfinder→gate
+            // cut lives inside it.
+            Color.white
+                .opacity(flash)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: phaseKey)
         .statusBarHidden(true)
         .fullScreenCover(isPresented: $showQuadEditor) {
             if let original {
@@ -104,8 +119,14 @@ struct CaptureFlowView: View {
             guard steady, autoArmed, phase == .gathering,
                   camera.availability == .ready else { return }
             autoArmed = false
-            Haptic.play(.tick)
             shutter()
+        }
+        .onChange(of: camera.guideQuad) { _, newQuad in
+            // One soft paper tick the moment the frame takes hold.
+            let locked = newQuad != nil
+            guard locked != hadLock else { return }
+            hadLock = locked
+            if locked { Haptic.play(.tick) }
         }
     }
 
@@ -135,26 +156,47 @@ struct CaptureFlowView: View {
         ZStack {
             CameraPreviewView(session: camera.session)
                 .ignoresSafeArea()
-            CaptureGuideOverlay(
+
+            // The captured frame, frozen the instant the shutter fires —
+            // the live feed stops dead while flatten works underneath.
+            if let frozenStill {
+                Color.clear
+                    .overlay {
+                        Image(uiImage: frozenStill)
+                            .resizable()
+                            .scaledToFill()
+                    }
+                    .clipped()
+                    .ignoresSafeArea()
+            }
+
+            StudioVignette()
+
+            CaptureViewfinder(
                 quad: camera.guideQuad,
                 bufferAspect: camera.bufferAspect,
-                steady: camera.quadSteady
+                steadySince: camera.steadySince,
+                frozen: frozenStill != nil
             )
             .ignoresSafeArea()
 
             VStack {
-                Text("切符を枠のなかへ")
+                Text(camera.guideQuad != nil ? "そのまま…" : "切符を枠のなかへ")
                     .font(Typo.gothic(12, bold: true))
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.92))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.25), value: camera.guideQuad != nil)
                     .glassEffect(.regular, in: .capsule)
                     .padding(.top, 64)
                 Spacer()
                 controls
                     .padding(.bottom, 30)
             }
+            .opacity(frozenStill == nil ? 1 : 0)
+            .animation(.easeOut(duration: 0.22), value: frozenStill == nil)
         }
     }
 
@@ -176,6 +218,16 @@ struct CaptureFlowView: View {
                     Circle()
                         .stroke(.white.opacity(0.95), lineWidth: 4)
                         .frame(width: 74, height: 74)
+
+                    // The hold-to-fire window, mirrored on the dial.
+                    SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: camera.steadySince == nil)) { timeline in
+                        Circle()
+                            .trim(from: 0, to: CaptureHold.progress(at: timeline.date, since: camera.steadySince))
+                            .stroke(Ink.shu, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .frame(width: 74, height: 74)
+
                     Circle()
                         .fill(Ink.shu)
                         .frame(width: 58, height: 58)
@@ -238,9 +290,17 @@ struct CaptureFlowView: View {
         guard !shutterBusy else { return }
         shutterBusy = true
         Haptic.play(.punch)
+        withAnimation(.linear(duration: 0.05)) { flash = 0.9 }
+        withAnimation(.easeOut(duration: 0.55).delay(0.07)) { flash = 0 }
         Task {
             defer { shutterBusy = false }
-            guard let photo = try? await camera.capturePhoto() else { return }
+            guard let photo = try? await camera.capturePhoto() else {
+                // The hardware blinked — reopen the room and re-arm.
+                withAnimation(.easeOut(duration: 0.3)) { frozenStill = nil }
+                autoArmed = true
+                return
+            }
+            frozenStill = photo
             await acquired(photo)
         }
     }
@@ -252,8 +312,11 @@ struct CaptureFlowView: View {
         await acquired(image)
     }
 
-    private func acquired(_ image: UIImage) async {
+    private func acquired(_ photo: UIImage) async {
         camera.stop()
+        // Bake EXIF rotation into pixels first — every Vision stage
+        // downstream must see the photo the way the user saw it.
+        let image = TicketRecognizer.normalized(photo)
         original = image
         let result = await TicketRecognizer.flatten(image)
         let flattened = result.image
@@ -271,7 +334,11 @@ struct CaptureFlowView: View {
         }
         // Warm the gazetteer off-main while the gate plays.
         Task.detached(priority: .utility) { _ = StationIndex.shared }
-        phase = .gate
+        // Explicit animation — switch-branch transitions must run on BOTH
+        // sides; an implicit container animation drops the removal.
+        withAnimation(.easeInOut(duration: 0.45)) {
+            phase = .gate
+        }
     }
 
     /// The user redrew the cut — their word is law: re-crop with zero
@@ -286,12 +353,13 @@ struct CaptureFlowView: View {
                 TicketRecognizer.applyQuad(original, quad: newQuad, inset: 0)
             }.value
             guard let recropped else { return }
+            let righted = await TicketRecognizer.rightSideUp(recropped, expectTicket: true)
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                scan = recropped
+                scan = righted
                 cutout = nil
             }
             let lines = await Task.detached(priority: .userInitiated) {
-                (try? await TicketRecognizer.recognizeLines(in: recropped)) ?? []
+                (try? await TicketRecognizer.recognizeLines(in: righted)) ?? []
             }.value
             let fresh = TicketTextParser.parse(ocrLines: lines)
             mergeFillingEmpty(from: fresh)
@@ -318,7 +386,11 @@ struct CaptureFlowView: View {
             parsed.styleSeed = draft.styleSeed
             parsed.id = draft.id
             draft = parsed
-            phase = .confirm
+            // The gate parked the ticket where the reveal shows it — this
+            // crossfade is the handoff, so both sides must actually fade.
+            withAnimation(.easeInOut(duration: 0.45)) {
+                phase = .confirm
+            }
         }
     }
 
@@ -335,7 +407,12 @@ struct CaptureFlowView: View {
         cutoutTask = nil
         draft = Ticket()
         autoArmed = true
-        phase = .gathering
+        frozenStill = nil
+        flash = 0
+        hadLock = false
+        withAnimation(.easeInOut(duration: 0.4)) {
+            phase = .gathering
+        }
         Task { await camera.start() }
     }
 

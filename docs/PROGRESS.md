@@ -2,6 +2,56 @@
 
 Running build log. Newest first.
 
+## 2026-06-12 — the viewfinder lives, the scan reads, the frames hold
+
+Answering the "looks AI-generated" pile-on: the boring capture screen,
+sideways vertical photos, and animation seams — all three, at the root.
+
+- [x] Orientation, twice over. `normalized()` bakes EXIF rotation into
+      pixels at acquisition (the whole Vision pipeline was reading camera
+      and library photos sideways); `rightSideUp()` then rights any scan
+      that still reads wrong. Vision OCRs rotated text happily, so
+      confidence can't vote — instead each recognized line's tight quad
+      (`boundingBox(for:)`) runs along its own glyphs, and the weighted
+      net of those vectors is the verdict: one small OCR pass decides
+      0/90/180/270 with a ~250× margin on fixtures. Applied to tight
+      scans, cutouts, manual re-crops; conservative thresholds for raw
+      photos. Vertical + upside-down fixtures e2e in the suite.
+- [x] The living viewfinder (CaptureViewfinder): one guide system in
+      three acts — corner grips breathe around a MARS window; on
+      detection they fly onto the ticket's actual corners while the dim
+      veil re-cuts itself around the quad (all shapes share one
+      animatable `Quad4`, so veil, grips and loop morph in lockstep);
+      holding still draws a vermilion loop from the top centre both ways,
+      sealing exactly as the gate auto-fires — the shutter dial mirrors
+      the same clock. Capture = white blink + frozen frame + the room
+      going near-black while flatten works. Studio vignette over the
+      live feed; microcopy answers state (切符を枠のなかへ → そのまま…).
+      Lock-on tick haptic; detection flicker damped by a 450ms grace.
+- [x] Camera truths: the session now *restarts* after a retake
+      (`start()` early-returned on `availability == .ready` — the
+      preview came back frozen, forever); steadiness is published as
+      `steadySince` so the UI draws the real countdown.
+- [x] Gate ceremony, physical: enters from below the frame; the scan
+      keeps its own aspect (no more force-cropping Edmondsons into MARS
+      proportions); the head flinches 2pt at the bite and the punched
+      chad flutters out of the slot (KeyframeAnimator tumble, seeded to
+      the hole's x); choreography is cancellation-safe.
+- [x] The handoff: after the sweep the ticket glides to the exact spot
+      ConfirmTicketView's reveal occupies (stage negotiation mirrored:
+      38pt + min(250, h/2−64) stage), the confirm raw frame wears the
+      same punch hole, and the phase change crossfades under an explicit
+      `withAnimation` — the implicit container animation was dropping
+      the removal side, leaving a black frame between gate and confirm
+      (caught frame-by-frame via simctl burst). The hole heals inside
+      the lift; the desk starts fully below the frame (640pt).
+- [x] Viewfinder rehearsal screen (`-uiScreen viewfinder`): synthetic
+      desk scene under the real chrome, acts advance on tap so
+      screenshots anchor to state — the simulator has no camera.
+- [x] 46 tests green (vertical/upside-down e2e, viewfinder acts walk,
+      full capture walk re-verified; handoff and chad confirmed by
+      simctl frame bursts).
+
 ## 2026-06-12 — boundaries you can trust + the 収蔵帳
 
 - [x] Boundary precision (informed by Mercari listing conventions):

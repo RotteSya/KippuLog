@@ -69,6 +69,53 @@ struct RecognitionIntegrationTests {
         #expect(parsed.toStation == "新大阪")
     }
 
+    /// Portrait photo of a vertical ticket (phone turned sideways): the
+    /// scan must come back landscape, reading naturally, and the route
+    /// must parse. This is the auto-rotation guarantee.
+    @Test func rightsVerticalPhotoToLandscape() async throws {
+        guard let photo = UIImage(contentsOfFile: "/tmp/kippu_test_vertical.png") else {
+            Issue.record("fixture missing — run scripts/gen_test_photos.swift")
+            return
+        }
+        let result = await TicketRecognizer.flatten(photo)
+        #expect(result.tight)
+        let aspect = result.image.size.width / max(result.image.size.height, 1)
+        #expect(aspect > 1.32 && aspect < 1.65)
+
+        let lines = (try? await TicketRecognizer.recognizeLines(in: result.image)) ?? []
+        let parsed = TicketTextParser.parse(ocrLines: lines)
+        #expect(parsed.fromStation == "東京")
+        #expect(parsed.toStation == "新大阪")
+    }
+
+    /// Upside-down photo: the rectangle is identical either way, only the
+    /// print knows. flatten must flip it so the scan reads.
+    @Test func rightsUpsideDownPhoto() async throws {
+        guard let photo = UIImage(contentsOfFile: "/tmp/kippu_test_updown.png") else {
+            Issue.record("fixture missing — run scripts/gen_test_photos.swift")
+            return
+        }
+        let result = await TicketRecognizer.flatten(photo)
+        #expect(result.tight)
+
+        // The flip is proven by geometry: a kept-upside-down scan would
+        // still parse (Vision reads inverted text) but display wrong, so
+        // assert the *display* via the route reading naturally top-down.
+        let lines = (try? await TicketRecognizer.recognizeLines(in: result.image)) ?? []
+        let parsed = TicketTextParser.parse(ocrLines: lines)
+        #expect(parsed.fromStation == "東京")
+        #expect(parsed.toStation == "新大阪")
+        let title = lines.first { $0.text.contains("新幹線") }
+        let issuer = lines.first { $0.text.contains("発行") }
+        if let title, let issuer {
+            // Vision boxes are y-up: the title row must sit ABOVE the
+            // issuer row once the scan is righted.
+            #expect(title.midY > issuer.midY)
+        } else {
+            Issue.record("title/issuer rows not found — OCR drifted")
+        }
+    }
+
     /// One-sided hard shadow: the halo inflates the first quad on a single
     /// edge; the second pass must shave it. Verified by the scan aspect.
     @Test func shavesOffsetShadowResidue() async throws {

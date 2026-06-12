@@ -11,6 +11,8 @@ struct RootView: View {
             ArtGalleryView(page: 1)
         case .hero:
             ArtHeroView()
+        case .viewfinder:
+            ViewfinderRehearsalView()
         case nil:
             TimelineView()
         }

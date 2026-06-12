@@ -35,7 +35,7 @@ struct ConfirmTicketView: View {
                 }
 
                 desk
-                    .offset(y: deskRaised ? 0 : 420)
+                    .offset(y: deskRaised ? 0 : 640)   // fully below the frame until it rises
                     .padding(.top, keyboardUp ? 10 : 0)
             }
         }
@@ -56,12 +56,24 @@ struct ConfirmTicketView: View {
 
     private var reveal: some View {
         ZStack {
-            // The raw frame — recedes and blurs away as the ticket lifts.
+            // The raw frame — still wearing the gate's punch, so the
+            // handoff from the ceremony is seamless; the hole heals
+            // quietly inside the lift. Recedes and blurs as the ticket
+            // rises.
+            let punch = PunchGeometry(seed: draft.styleSeed, kind: .joshaken)
             Image(uiImage: scan)
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: 300, maxHeight: 230)
-                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .clipShape(
+                    PunchedTicketShape(
+                        corner: 6,
+                        holeUnit: punch.hole,
+                        holeRadiusUnit: 0.026,
+                        notchUnitX: nil
+                    ),
+                    style: FillStyle(eoFill: true)
+                )
                 .shadow(color: .black.opacity(0.45), radius: 16, y: 10)
                 .opacity(lifted ? 0 : 1)
                 .scaleEffect(lifted ? 0.94 : 1)
@@ -164,12 +176,15 @@ struct ConfirmTicketView: View {
 
     private func choreograph() async {
         guard !lifted else { return }
-        try? await Task.sleep(for: .milliseconds(340))
+        // Let the gate's handoff crossfade settle before the lift.
+        try? await Task.sleep(for: .milliseconds(480))
+        guard !Task.isCancelled else { return }
         Haptic.play(.stamp)
         withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
             lifted = true
         }
         try? await Task.sleep(for: .milliseconds(340))
+        guard !Task.isCancelled else { return }
         withAnimation(.spring(response: 0.6, dampingFraction: 0.84)) {
             deskRaised = true
         }

@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// The 改札 ceremony. The captured ticket leans back and feeds upward
-/// through the reader head — squish, *kachunk*, punch — then the
-/// reading light sweeps it while OCR works. Pure theatre, precisely
-/// timed.
+/// The 改札 ceremony. The captured ticket rises from the hand, leans back
+/// and feeds upward through the reader head — squish, *kachunk*, punch,
+/// a chad of paper flutters out — then the reading light sweeps it while
+/// OCR works, and the ticket glides to the exact spot where the confirm
+/// desk will pick it up. Pure theatre, precisely timed.
 struct GatePassView: View {
     let scan: UIImage
     /// Punch geometry must match the final plate, so the hole the gate
@@ -13,13 +14,22 @@ struct GatePassView: View {
     var onFinished: () -> Void
 
     // Choreography state
-    @State private var ticketOffset: CGFloat = 0.46   // ×height
-    @State private var lean: Double = 0
+    @State private var ticketOffset: CGFloat = 0.62   // ×height — starts in the hand, below the frame
+    @State private var lean: Double = -16
+    @State private var scale: CGFloat = 0.965
     @State private var squish: Double = 0
     @State private var punched = false
+    @State private var chad = false
+    @State private var headBite = false
     @State private var scanProgress: Double = -0.2
     @State private var showCaption = false
     @State private var slotFlash = false
+
+    /// The scan's own proportions — never force MARS onto an Edmondson.
+    private var aspect: CGFloat {
+        let raw = scan.size.height > 0 ? scan.size.width / scan.size.height : MarsTicketFace.aspect
+        return min(max(raw, 1.30), 2.40)
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -31,13 +41,24 @@ struct GatePassView: View {
 
                 // Ticket travelling through.
                 ticketBody(width: ticketWidth)
+                    .scaleEffect(scale)
                     .rotation3DEffect(.degrees(lean), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
                     .offset(y: ticketOffset * size.height)
                     .zIndex(1)
 
                 // The reader head.
                 readerHead(width: size.width)
+                    .offset(y: headBite ? 2 : 0)
                     .zIndex(2)
+
+                // The punched-out chad, fluttering from the slot.
+                if chad {
+                    PunchChad(
+                        diameter: ticketWidth * 0.048,
+                        startX: chadX(ticketWidth: ticketWidth)
+                    )
+                    .zIndex(3)
+                }
 
                 // Caption under everything.
                 VStack {
@@ -49,11 +70,12 @@ struct GatePassView: View {
                         .opacity(showCaption ? 1 : 0)
                         .padding(.bottom, size.height * 0.15)
                 }
-                .zIndex(3)
+                .animation(.easeInOut(duration: 0.3), value: showCaption)
+                .zIndex(4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .task { await choreograph(size: size, ticketWidth: ticketWidth) }
         }
-        .task { await choreograph() }
     }
 
     // MARK: Ticket
@@ -63,7 +85,7 @@ struct GatePassView: View {
         return Image(uiImage: scan)
             .resizable()
             .scaledToFill()
-            .frame(width: width, height: width / MarsTicketFace.aspect)
+            .frame(width: width, height: width / aspect)
             .clipShape(
                 PunchedTicketShape(
                     corner: 6,
@@ -91,6 +113,11 @@ struct GatePassView: View {
                 )
             }
             .shadow(color: .black.opacity(0.5), radius: 18, y: 12)
+    }
+
+    private func chadX(ticketWidth: CGFloat) -> CGFloat {
+        let punch = PunchGeometry(seed: styleSeed, kind: .joshaken)
+        return ((punch.hole?.x ?? 0.5) - 0.5) * ticketWidth
     }
 
     // MARK: Reader head
@@ -169,13 +196,15 @@ struct GatePassView: View {
 
     // MARK: Choreography
 
-    private func choreograph() async {
+    private func choreograph(size: CGSize, ticketWidth: CGFloat) async {
         // 1 — rise from the hand to just below the slot, leaning in.
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.74)) {
+        withAnimation(.spring(response: 0.62, dampingFraction: 0.78)) {
             ticketOffset = 0.155
             lean = -7
+            scale = 1
         }
-        try? await Task.sleep(for: .milliseconds(620))
+        try? await Task.sleep(for: .milliseconds(660))
+        guard !Task.isCancelled else { return }
 
         // 2 — feed through the slot.
         withAnimation(.easeIn(duration: 0.52)) {
@@ -184,17 +213,27 @@ struct GatePassView: View {
             squish = 1
         }
         try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled else { return }
 
-        // 3 — the bite.
+        // 3 — the bite. The head flinches, the chad flutters out.
         Haptic.play(.punch)
         slotFlash = true
         punched = true
-        try? await Task.sleep(for: .milliseconds(240))
+        chad = true
+        withAnimation(.spring(response: 0.16, dampingFraction: 0.55)) {
+            headBite = true
+        }
+        try? await Task.sleep(for: .milliseconds(90))
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            headBite = false
+        }
+        try? await Task.sleep(for: .milliseconds(150))
         slotFlash = false
         withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) {
             squish = 0
         }
         try? await Task.sleep(for: .milliseconds(260))
+        guard !Task.isCancelled else { return }
 
         // 4 — reading light.
         showCaption = true
@@ -202,8 +241,91 @@ struct GatePassView: View {
             scanProgress = 1.2
         }
         try? await Task.sleep(for: .milliseconds(950))
+        guard !Task.isCancelled else { return }
+
+        // 5 — hand the ticket to the desk: glide to the exact spot the
+        // confirm reveal occupies, so the crossfade is a handoff, not a
+        // jump.
+        showCaption = false
+        let park = parkTarget(size: size, ticketWidth: ticketWidth)
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.88)) {
+            ticketOffset = park.offsetUnit
+            scale = park.scale
+        }
+        try? await Task.sleep(for: .milliseconds(430))
+        guard !Task.isCancelled else { return }
 
         onFinished()
+    }
+
+    /// Where ConfirmTicketView's reveal will show this very scan: a
+    /// ≤250pt stage under 38pt of top padding (the stage shrinks on
+    /// shorter phones exactly like the VStack negotiation over there).
+    private func parkTarget(size: CGSize, ticketWidth: CGFloat) -> (offsetUnit: CGFloat, scale: CGFloat) {
+        let stageHeight = min(250, size.height / 2 - 64)
+        let targetCenterY = 38 + stageHeight / 2
+        let targetWidth = min(size.width - 60, 300)
+        return (
+            offsetUnit: (targetCenterY - size.height / 2) / size.height,
+            scale: targetWidth / ticketWidth
+        )
+    }
+}
+
+/// The punched-out circle of ticket stock: it drops from the slot,
+/// tumbling and swaying like the weightless paper it is, and is gone.
+private struct PunchChad: View {
+    let diameter: CGFloat
+    let startX: CGFloat
+
+    private struct Fall {
+        var y: CGFloat = 6
+        var x: CGFloat = 0
+        var tumble: CGFloat = 1     // scaleY — the disc seen edge-on as it turns
+        var spin: Double = 0
+        var opacity: Double = 1
+    }
+
+    @State private var dropped = false
+
+    var body: some View {
+        KeyframeAnimator(initialValue: Fall(), trigger: dropped) { fall in
+            Ellipse()
+                .fill(Color(hex: 0xEFE7D6))
+                .frame(width: diameter, height: diameter)
+                .scaleEffect(y: max(fall.tumble, 0.08))
+                .rotationEffect(.degrees(fall.spin))
+                .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
+                .offset(x: startX + fall.x, y: fall.y)
+                .opacity(fall.opacity)
+        } keyframes: { _ in
+            KeyframeTrack(\.y) {
+                CubicKeyframe(26, duration: 0.16)
+                CubicKeyframe(74, duration: 0.26)
+                CubicKeyframe(168, duration: 0.34)
+            }
+            KeyframeTrack(\.x) {
+                CubicKeyframe(5, duration: 0.20)
+                CubicKeyframe(-4, duration: 0.26)
+                CubicKeyframe(7, duration: 0.30)
+            }
+            KeyframeTrack(\.tumble) {
+                CubicKeyframe(0.18, duration: 0.14)
+                CubicKeyframe(0.85, duration: 0.18)
+                CubicKeyframe(0.12, duration: 0.20)
+                CubicKeyframe(0.65, duration: 0.24)
+            }
+            KeyframeTrack(\.spin) {
+                LinearKeyframe(38, duration: 0.76)
+            }
+            KeyframeTrack(\.opacity) {
+                LinearKeyframe(1, duration: 0.50)
+                LinearKeyframe(0, duration: 0.26)
+            }
+        }
+        .onAppear { dropped = true }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
