@@ -54,19 +54,12 @@ struct TicketCardContent: View {
         .studioFrame(seed: ticket.styleSeed, lying: lying)
     }
 
+    /// The photo's true aspect — the ticket is always shown whole, never
+    /// cropped to a layout box (the magazine, the stage and the album all
+    /// read the same real shape).
     private func scanAspect(_ photo: UIImage) -> CGFloat {
-        let raw = ticket.photoAspect
+        ticket.photoAspect
             ?? (photo.size.height > 0 ? photo.size.width / photo.size.height : MarsTicketFace.aspect)
-        return CardMetrics.clampedPhotoAspect(raw)
-    }
-}
-
-/// Display metrics shared between the cards and the stage.
-enum CardMetrics {
-    /// Photo aspect (w/h), clamped so neither a panorama nor a tall crop
-    /// breaks the page rhythm.
-    static func clampedPhotoAspect(_ raw: CGFloat) -> CGFloat {
-        min(max(raw, 1.0), 2.3)
     }
 }
 
@@ -84,7 +77,7 @@ struct ScanObject: View {
             let corner = max(3, w * 0.013)
             Image(uiImage: photo)
                 .resizable()
-                .scaledToFill()
+                .scaledToFit()
                 .frame(width: w, height: w / aspect)
                 .clipShape(RoundedRectangle(cornerRadius: corner))
                 .overlay {

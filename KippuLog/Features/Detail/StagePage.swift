@@ -160,7 +160,7 @@ struct StagePage: View {
         if let cutout = store.cutout(for: ticket), cutout.size.height > 0 {
             aspect = cutout.size.width / cutout.size.height
         } else if store.photo(for: ticket) != nil, let raw = ticket.photoAspect {
-            aspect = CardMetrics.clampedPhotoAspect(raw)
+            aspect = raw
         } else {
             aspect = TicketArtView.aspect(for: ticket.kind)
         }
