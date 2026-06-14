@@ -73,9 +73,9 @@ func drawText(_ s: String, font: NSFont, color: NSColor, center: CGPoint) {
 }
 
 let midY = ticketRect.midY - 10
-drawText("東", font: stationFont, color: ink,
+drawText("幸", font: stationFont, color: ink,
          center: CGPoint(x: ticketRect.minX + ticketW * 0.245, y: midY))
-drawText("京", font: stationFont, color: ink,
+drawText("福", font: stationFont, color: ink,
          center: CGPoint(x: ticketRect.maxX - ticketW * 0.245, y: midY))
 
 // Vermilion arrow between them.

@@ -409,6 +409,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "きっぷログ";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "切符を撮影してコレクションに追加します。";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "作成した切符カードを写真に保存します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -439,6 +440,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "きっぷログ";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "切符を撮影してコレクションに追加します。";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "作成した切符カードを写真に保存します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
