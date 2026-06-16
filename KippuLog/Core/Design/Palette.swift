@@ -53,7 +53,14 @@ extension Color {
     }
 
     /// Trait-adaptive color from two hex values.
-    static func dynamic(light: UInt32, dark: UInt32) -> Color {
+    ///
+    /// `nonisolated` is load-bearing. SwiftUI resolves colours on a non-main
+    /// render thread (`ViewGraphDisplayLink.asyncThread`); under this target's
+    /// `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, an unannotated provider
+    /// closure inherits `@MainActor` and traps (EXC_BREAKPOINT) the instant
+    /// UIKit resolves it off-main. Keeping the helper — and thus its closure —
+    /// nonisolated lets the trait lookup run safely on any thread.
+    nonisolated static func dynamic(light: UInt32, dark: UInt32) -> Color {
         Color(UIColor { traits in
             let hex = traits.userInterfaceStyle == .dark ? dark : light
             return UIColor(
