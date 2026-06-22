@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>きっぷログ — 切符コレクション</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#F7F3EB; --paper2:#EFE9DC; --ink:#26211B; --soft:rgba(38,33,27,.62); --faint:rgba(38,33,27,.42); --shu:#D8401F; --studio:#14110E; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--paper);line-height:1.85;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:0 28px;}
+  .mincho{font-family:'Shippori Mincho',serif;}
+  header.hero{padding:120px 0 90px;text-align:center;}
+  .eyebrow{font-size:13px;letter-spacing:.42em;color:var(--faint);display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:34px;}
+  .dot{width:11px;height:11px;background:var(--shu);display:inline-block;}
+  h1.title{font-family:'Shippori Mincho',serif;font-weight:800;font-size:64px;letter-spacing:.06em;line-height:1.25;}
+  .lede{font-family:'Shippori Mincho',serif;font-weight:500;font-size:22px;color:var(--soft);margin-top:26px;letter-spacing:.04em;}
+  section{padding:64px 0;border-top:1px solid rgba(38,33,27,.10);}
+  h2{font-family:'Shippori Mincho',serif;font-weight:700;font-size:30px;letter-spacing:.05em;margin-bottom:26px;}
+  p{margin-bottom:16px;}
+  .faq dt{font-weight:700;margin-top:24px;}
+  .faq dd{color:var(--soft);margin-bottom:4px;}
+  a{color:var(--shu);text-decoration:none;border-bottom:1px solid rgba(216,64,31,.35);}
+  a:hover{border-bottom-color:var(--shu);}
+  .mail{font-family:'Shippori Mincho',serif;font-size:22px;}
+  footer{padding:70px 0 90px;border-top:1px solid rgba(38,33,27,.10);color:var(--faint);font-size:13px;letter-spacing:.04em;text-align:center;}
+  footer .nav{margin-bottom:18px;}
+  footer .nav a{margin:0 14px;color:var(--soft);border:none;letter-spacing:.1em;}
+  .latin{letter-spacing:.5em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow"><span class="dot"></span>きっぷログ</div>
+    <h1 class="title">旅の切符を、<br>撮るだけで一冊に。</h1>
+    <p class="lede">改札を抜けたあの一枚を、紙の質感のまま、月ごとの記録帳に。</p>
+  </header>
+
+  <section id="about">
+    <h2>きっぷログについて</h2>
+    <p>きっぷログは、旅で手にした切符を写真に撮り、一冊の記録として残すアプリです。カメラを向けるだけで券面を読み取り、区間・日付・列車・運賃を整え、月ごとの誌面に綴じていきます。新幹線・特急券・乗車券・入場券、私鉄のきっぷまで、券種を問わず。</p>
+    <p>撮った切符は、すべてあなたの端末の中だけに保存されます。通信は行わず、データを外部に送ることはありません。</p>
+  </section>
+
+  <section id="support">
+    <h2>サポート</h2>
+    <p>ご質問・不具合のご報告・ご要望は、メールで承ります。できるだけ早くお返事します。</p>
+    <p class="mail"><a href="mailto:raysyadesu@gmail.com">raysyadesu@gmail.com</a></p>
+  </section>
+
+  <section id="faq">
+    <h2>よくある質問</h2>
+    <dl class="faq">
+      <dt>データはどこに保存されますか？</dt>
+      <dd>すべて端末内にのみ保存されます。本アプリは外部サーバーと通信しません。</dd>
+      <dt>アカウント登録は必要ですか？</dt>
+      <dd>不要です。登録もログインもありません。</dd>
+      <dt>対応端末は？</dt>
+      <dd>iPhone（iOS 26 以降）。縦向きでご利用いただけます。</dd>
+      <dt>切符の読み取りはどう動きますか？</dt>
+      <dd>端末内の文字認識で券面を読み取ります。画像が端末の外に出ることはありません。</dd>
+    </dl>
+  </section>
+
+  <footer>
+    <div class="nav">
+      <a href="./privacy.html">プライバシーポリシー</a>
+      <a href="mailto:raysyadesu@gmail.com">お問い合わせ</a>
+    </div>
+    <div class="latin mincho">KIPPULOG</div>
+    <p style="margin-top:14px;">© 2026 きっぷログ</p>
+  </footer>
+</div>
+</body>
+</html>
