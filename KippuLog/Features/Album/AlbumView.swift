@@ -7,34 +7,44 @@ import SwiftUI
 struct AlbumView: View {
     @Environment(TicketStore.self) private var store
     let zoomNamespace: Namespace.ID
+    /// The ticket on stage, if any — the spread scrolls so its mount is
+    /// on the page when the return flight lands.
+    var selection: Ticket?
     var onOpen: (Ticket) -> Void
     var onJumpMonth: (DateComponents) -> Void
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 34) {
-                header
-                    .padding(.top, 20)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 34) {
+                    header
+                        .padding(.top, 20)
 
-                ForEach(store.yearGroups, id: \.year) { group in
-                    YearSpread(
-                        year: group.year,
-                        months: group.months,
-                        zoomNamespace: zoomNamespace,
-                        onOpen: onOpen,
-                        onJumpMonth: onJumpMonth
-                    )
-                    .padding(.horizontal, 20)
+                    ForEach(store.yearGroups, id: \.year) { group in
+                        YearSpread(
+                            year: group.year,
+                            months: group.months,
+                            zoomNamespace: zoomNamespace,
+                            onOpen: onOpen,
+                            onJumpMonth: onJumpMonth
+                        )
+                        .padding(.horizontal, 20)
+                    }
+
+                    Text("つまんで ひらく")
+                        .font(Typo.gothic(10))
+                        .tracking(3)
+                        .foregroundStyle(Ink.textFaint)
+                        .padding(.bottom, 110)
                 }
-
-                Text("つまんで ひらく")
-                    .font(Typo.gothic(10))
-                    .tracking(3)
-                    .foregroundStyle(Ink.textFaint)
-                    .padding(.bottom, 110)
+            }
+            .scrollIndicators(.hidden)
+            .onChange(of: selection) { old, new in
+                // Paging on the stage: keep the return slot on the page.
+                guard old != nil, let new else { return }
+                proxy.scrollTo("a-cell-\(new.id)", anchor: .center)
             }
         }
-        .scrollIndicators(.hidden)
         .background(Ink.background)
     }
 
@@ -102,6 +112,7 @@ private struct YearSpread: View {
                         onOpen: onOpen,
                         onJumpMonth: onJumpMonth
                     )
+                    .id("a-cell-\(item.ticket.id)")
                     .opacity(appeared ? 1 : 0)
                     .scaleEffect(appeared ? 1 : 0.86)
                     .animation(

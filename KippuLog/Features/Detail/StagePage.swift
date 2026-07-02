@@ -7,6 +7,8 @@ struct StagePage: View {
     @Environment(TicketStore.self) private var store
     let ticketID: UUID
     var shredProgress: Double = 0
+    /// Departure: facts dissolve while the ticket holds the light.
+    var departing = false
 
     @State private var tilt: CGSize = .zero
     @State private var settled = false
@@ -61,8 +63,10 @@ struct StagePage: View {
                         .padding(.horizontal, 36)
                         .padding(.top, 30)
                 }
-                // The page clears its throat while the gate takes the ticket.
-                .opacity(1 - min(1, shredProgress * 2.6))
+                // The page clears its throat while the gate takes the
+                // ticket — and again when the ticket departs for home.
+                .opacity(departing ? 0 : 1 - min(1, shredProgress * 2.6))
+                .animation(.easeOut(duration: 0.16), value: departing)
 
                 Spacer(minLength: 120)
             }
@@ -160,6 +164,8 @@ struct StagePage: View {
                     endPoint: .bottom
                 )
             }
+            .opacity(departing ? 0 : 1)
+            .animation(.easeOut(duration: 0.16), value: departing)
             .offset(x: -tilt.width * 6)
             .allowsHitTesting(false)
     }

@@ -21,10 +21,67 @@ struct TimelineView: View {
 
     var body: some View {
         NavigationStack {
+            stackRoot
+        }
+        .overlay(alignment: .bottom) {
+            if selectedTicket == nil {
+                PunchButton {
+                    openGate()
+                }
+                .scaleEffect(punchPop ? 1.16 : 1)
+                .padding(.bottom, 14)
+                .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
+        .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
+            CaptureFlowView(initialImage: droppedImage)
+                .presentationBackground(.clear)
+        }
+        .onChange(of: store.welcomeFollowUp) { _, followUp in
+            // The welcome's specimen just dove into the punch button — the
+            // button answers with one pop, then (if asked) opens the gate.
+            guard let followUp else { return }
+            store.welcomeFollowUp = nil
+            Task {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.5)) { punchPop = true }
+                try? await Task.sleep(for: .milliseconds(240))
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.62)) { punchPop = false }
+                if followUp == .capture {
+                    try? await Task.sleep(for: .milliseconds(280))
+                    openGate()
+                }
+            }
+        }
+        .task {
+            #if DEBUG
+            // `-uiTestImport` launches straight into the gate ceremony.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestImport"), !showCapture {
+                try? await Task.sleep(for: .milliseconds(700))
+                openGate()
+            }
+            // `-uiTestProbeReturn` — opens the first ticket on a fixed
+            // clock; the stage closes itself via the same `dismiss()` the
+            // X button uses (see TicketStageView), so an external burst
+            // can dissect the real return zoom. Combine with -uiTestAlbum
+            // for the album's return.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestProbeReturn") {
+                try? await Task.sleep(for: .seconds(2))
+                if let first = store.tickets.first {
+                    zoomSourceKey = (showAlbum ? "a-" : "t-") + first.id.uuidString
+                    selectedTicket = first
+                }
+            }
+            #endif
+        }
+    }
+
+    private var stackRoot: some View {
             ZStack {
                 if showAlbum {
                     AlbumView(
                         zoomNamespace: zoomNamespace,
+                        selection: selectedTicket,
                         onOpen: { ticket in
                             zoomSourceKey = "a-\(ticket.id)"
                             selectedTicket = ticket
@@ -101,46 +158,6 @@ struct TimelineView: View {
                 guard old != nil, let new else { return }
                 zoomSourceKey = (showAlbum ? "a-" : "t-") + new.id.uuidString
             }
-        }
-        .overlay(alignment: .bottom) {
-            if selectedTicket == nil {
-                PunchButton {
-                    openGate()
-                }
-                .scaleEffect(punchPop ? 1.16 : 1)
-                .padding(.bottom, 14)
-                .transition(.scale(scale: 0.5).combined(with: .opacity))
-            }
-        }
-        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
-        .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
-            CaptureFlowView(initialImage: droppedImage)
-                .presentationBackground(.clear)
-        }
-        .onChange(of: store.welcomeFollowUp) { _, followUp in
-            // The welcome's specimen just dove into the punch button — the
-            // button answers with one pop, then (if asked) opens the gate.
-            guard let followUp else { return }
-            store.welcomeFollowUp = nil
-            Task {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.5)) { punchPop = true }
-                try? await Task.sleep(for: .milliseconds(240))
-                withAnimation(.spring(response: 0.34, dampingFraction: 0.62)) { punchPop = false }
-                if followUp == .capture {
-                    try? await Task.sleep(for: .milliseconds(280))
-                    openGate()
-                }
-            }
-        }
-        .task {
-            #if DEBUG
-            // `-uiTestImport` launches straight into the gate ceremony.
-            if ProcessInfo.processInfo.arguments.contains("-uiTestImport"), !showCapture {
-                try? await Task.sleep(for: .milliseconds(700))
-                openGate()
-            }
-            #endif
-        }
     }
 
     /// Open the gate with no system slide — the capture room dims itself

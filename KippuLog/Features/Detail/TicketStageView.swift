@@ -13,6 +13,11 @@ struct TicketStageView: View {
     @State private var showEdit = false
     @State private var confirmDelete = false
     @State private var shredProgress: Double = 0
+    /// The departure: facts and chrome dissolve, then the ticket flies.
+    @State private var departing = false
+    /// Lights out — fired *with* the pop, so the room dissolves inside
+    /// the shrinking window while the ticket rides it home.
+    @State private var lightsOut = false
 
     init(selection: Binding<Ticket?>) {
         _selection = selection
@@ -22,12 +27,15 @@ struct TicketStageView: View {
     var body: some View {
         ZStack {
             StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.26), radius: 0.85, warmth: 0.55, air: true)
+                .opacity(lightsOut ? 0 : 1)
+                .animation(.easeOut(duration: 0.22), value: lightsOut)
 
             TabView(selection: $pageID) {
                 ForEach(store.tickets) { ticket in
                     StagePage(
                         ticketID: ticket.id,
-                        shredProgress: ticket.id == pageID ? shredProgress : 0
+                        shredProgress: ticket.id == pageID ? shredProgress : 0,
+                        departing: departing
                     )
                     .tag(ticket.id)
                 }
@@ -35,10 +43,18 @@ struct TicketStageView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(edges: .bottom)
         }
+        // Behind the studio, the window is the same paper as the page it
+        // shrinks onto — when the lights go out mid-pop, the room gives
+        // way to paper-on-paper and the lone ticket rides the window home.
+        .containerBackground(Ink.background, for: .navigation)
         .scaleEffect(pinchScale)
         .opacity(Double(0.4 + pinchScale * 0.6))
         .simultaneousGesture(pinchToClose)
-        .overlay(alignment: .top) { chrome }
+        .overlay(alignment: .top) {
+            chrome
+                .opacity(departing ? 0 : 1)
+                .animation(.easeOut(duration: 0.16), value: departing)
+        }
         .onChange(of: pageID) { old, new in
             guard old != new else { return }
             Haptic.play(.page)
@@ -61,6 +77,38 @@ struct TicketStageView: View {
         }
         .toolbarVisibility(.hidden, for: .navigationBar)
         .statusBarHidden(true)
+        .task {
+            #if DEBUG
+            // `-uiTestProbeReturn` — close after a beat through the exact
+            // path the X button takes, for external burst dissection.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestProbeReturn") {
+                try? await Task.sleep(for: .seconds(2.5))
+                flyHome()
+            }
+            #endif
+        }
+    }
+
+    // MARK: Departure
+
+    /// Departure: the facts dissolve, the room's lights go out — and the
+    /// system pop is left shrinking a lone lit ticket home to its slot,
+    /// never a dark rectangle of room.
+    private func flyHome() {
+        guard !departing else { return }
+        Haptic.play(.tick)
+        withAnimation(.easeOut(duration: 0.16)) { departing = true }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { pinchScale = 1 }
+        Task {
+            // Beat one: the facts dissolve. Beat two: the lamp goes out,
+            // leaving the lone ticket on paper. Beat three: the pop rides
+            // the ticket home — a paper window over a paper page, so the
+            // only thing seen moving is the ticket itself.
+            try? await Task.sleep(for: .milliseconds(140))
+            lightsOut = true
+            try? await Task.sleep(for: .milliseconds(90))
+            dismiss()
+        }
     }
 
     private var currentTicket: Ticket? {
@@ -72,7 +120,7 @@ struct TicketStageView: View {
     private var chrome: some View {
         HStack {
             Button {
-                dismiss()
+                flyHome()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .medium))
@@ -132,11 +180,7 @@ struct TicketStageView: View {
             }
             .onEnded { value in
                 if value.magnification < 0.72 {
-                    Haptic.play(.tick)
-                    dismiss()
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.3)) {
-                        pinchScale = 1
-                    }
+                    flyHome()
                 } else {
                     withAnimation(.spring(response: 0.36, dampingFraction: 0.7)) {
                         pinchScale = 1
