@@ -98,6 +98,10 @@ Rendered purely from data — used only when there is no photo:
 - **The dark room (`studioLight`):** a dithered warm pool of light —
   never flat black, never banded. Hero tickets cast a faint table
   reflection that fades as they lift.
+- **The air (`studioAir`, stage only):** eleven dust motes drift up
+  through the lamp cone on slow sinusoids — gaussian-soft, lit only
+  inside the pool, never brighter than a breath. Reduce Motion stills
+  the air. The room is a place, not a color.
 
 ## The opening ceremony (first launch only)
 
@@ -124,7 +128,8 @@ the words and buttons. The launch screen wears `LaunchBackground`
 | first launch | the opening ceremony above; lights-up hands off to the masthead, whose seal stamps in once per session |
 | open capture | no system slide — the studio dims in over the page (0.38s), the same lights that opened the app |
 | leave capture | lights up over a shelf already walking to the fresh plate; the punched-in sweep lands as the paper returns |
-| timeline → detail | zoom transition; the photo settles under the lamp |
+| timeline → detail | zoom transition; the photo settles under the lamp while one pass of the reading light sweeps it |
+| timeline pinch | the live pinch folds the page like a book closing (X-lean + deepening edge); release unfolds into the album commit. The colophon whispers the way in |
 | timeline ⇄ 収蔵帳 | pinch the magazine closed → the year album (kraft spreads, photo-corner mounts, month slips); pinch open to return |
 | detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
 | detail browse | horizontal paging, cards swap with bouncy springs |
