@@ -10,6 +10,8 @@ struct ConfirmTicketView: View {
     let scan: UIImage
     var cutout: UIImage?
     @Binding var draft: Ticket
+    /// The save is underway — desk withdraws, ticket sinks to the book.
+    var saving = false
     var onSave: () -> Void
     var onRetake: () -> Void
     /// Opens the manual corner editor; nil when no original survives.
@@ -34,6 +36,10 @@ struct ConfirmTicketView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, ConfirmStage.topPadding)
                         .padding(.bottom, 26)
+                        // Saving: the ticket sinks toward the book below.
+                        .offset(y: saving ? 52 : 0)
+                        .scaleEffect(saving ? 0.95 : 1)
+                        .opacity(saving ? 0 : 1)
                         .transition(
                             .scale(scale: 0.8, anchor: .top)
                                 .combined(with: .opacity)
@@ -41,7 +47,7 @@ struct ConfirmTicketView: View {
                 }
 
                 desk
-                    .offset(y: deskRaised ? 0 : 640)   // fully below the frame until it rises
+                    .offset(y: deskRaised && !saving ? 0 : 640)   // below the frame until it rises
                     .padding(.top, keyboardUp ? 10 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

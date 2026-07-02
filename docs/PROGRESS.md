@@ -2,6 +2,39 @@
 
 Running build log. Newest first.
 
+## 2026-07-02 (night) — the rail, the slip, and the sinking ticket
+
+Answering "generic motion, awkward layout": the last system-feeling
+moments on the stage are gone, and the stage's column breathes right.
+
+- [x] StageRail (`Features/Detail/StageRail.swift`): the stage's pager
+      is no longer a system TabView — it's a shelf rail driven by a
+      CADisplayLink spring. One continuous `position` is the whole
+      truth; your finger owns it directly (interrupt anything mid-
+      flight), cards lean slightly away on a perspective rail,
+      neighbours recede a step out of the lamp, the flick projects to
+      a notch, and the notch is a haptic. Three recycled hosting seats
+      carry the SwiftUI furniture; the camera is pure UIKit/CA.
+      LESSON: `withAnimation` does NOT interpolate across a
+      UIHostingController boundary — the shred jumped 0→1 invisibly
+      until the page took its own `.animation(value:)` clock inside
+      the hosted tree.
+- [x] 改札の問い (`DeleteSlip`): the delete confirm is a paper slip
+      with a torn top edge sliding onto the desk — 手放す in shu,
+      やめる in hairline — not a system dialog. The room dims a step
+      while the question stands.
+- [x] Saving sinks the ticket: on コレクションに追加 the desk
+      withdraws, the ticket drifts down toward the book and fades as
+      the lights come up on a shelf already walking to the fresh
+      plate — one motion from form to page.
+- [x] Stage layout trued up: the memo now shares the stub's column
+      (one margin system below the exhibit); the table reflection is
+      foreshortened (0.62) and dissolves by a third of its height — a
+      sheen at the card's foot, never a dark band; vertical rhythm
+      rebalanced (64/52/38/36).
+- [x] Full suite green; rail drag, shred, slip, save-sink, and both
+      returns dissected frame-by-frame from recordings.
+
 ## 2026-07-02 (evening) — the ticket comes home; the cover grows doors; 1.0.1 ships
 
 - [x] The zoom RETURN was the last "AI-slop" seam: closing a ticket

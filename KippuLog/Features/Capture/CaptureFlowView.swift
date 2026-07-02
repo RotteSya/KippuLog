@@ -34,6 +34,9 @@ struct CaptureFlowView: View {
     /// The room's dimmer. The cover presents with no system animation —
     /// entering the gate is the page going dark, leaving is lights-up.
     @State private var roomLit = false
+    /// Saving: the desk withdraws and the ticket sinks toward the book
+    /// while the lights come up — one motion, no cut.
+    @State private var saving = false
 
     enum Phase { case gathering, gate, confirm }
 
@@ -68,6 +71,7 @@ struct CaptureFlowView: View {
                         scan: scan,
                         cutout: cutout,
                         draft: $draft,
+                        saving: saving,
                         onSave: save,
                         onRetake: retake,
                         onAdjust: original == nil ? nil : { showQuadEditor = true }
@@ -435,9 +439,18 @@ struct CaptureFlowView: View {
 
     private func save() {
         // Add first — the shelf beneath starts its walk-and-sweep to the
-        // fresh plate while the lights are still coming up.
+        // fresh plate while the ticket is still sinking toward the book.
         store.add(draft, photo: scan, cutout: cutout)
-        close()
+        camera.stop()
+        withAnimation(.spring(response: 0.46, dampingFraction: 0.9)) { saving = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(170))
+            withAnimation(.easeOut(duration: 0.32)) { roomLit = false }
+            try? await Task.sleep(for: .milliseconds(330))
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { dismiss() }
+        }
     }
 
     private func retake() {

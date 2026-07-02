@@ -30,17 +30,12 @@ struct TicketStageView: View {
                 .opacity(lightsOut ? 0 : 1)
                 .animation(.easeOut(duration: 0.22), value: lightsOut)
 
-            TabView(selection: $pageID) {
-                ForEach(store.tickets) { ticket in
-                    StagePage(
-                        ticketID: ticket.id,
-                        shredProgress: ticket.id == pageID ? shredProgress : 0,
-                        departing: departing
-                    )
-                    .tag(ticket.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            StageRail(
+                tickets: store.tickets,
+                pageID: $pageID,
+                shredProgress: shredProgress,
+                departing: departing
+            )
             .ignoresSafeArea(edges: .bottom)
         }
         // Behind the studio, the window is the same paper as the page it
@@ -56,8 +51,9 @@ struct TicketStageView: View {
                 .animation(.easeOut(duration: 0.16), value: departing)
         }
         .onChange(of: pageID) { old, new in
+            // The rail's notch already spoke (haptic); keep the zoom
+            // source in step with the card under the lamp.
             guard old != new else { return }
-            Haptic.play(.page)
             if let ticket = store.tickets.first(where: { $0.id == new }) {
                 selection = ticket
             }
@@ -67,13 +63,23 @@ struct TicketStageView: View {
                 EditTicketSheet(ticket: ticket)
             }
         }
-        .confirmationDialog(
-            "この切符を手放しますか？",
-            isPresented: $confirmDelete,
-            titleVisibility: .visible
-        ) {
-            Button("手放す", role: .destructive) { shredAndDelete() }
-            Button("やめる", role: .cancel) {}
+        .overlay {
+            // The gate asks in its own voice — a paper slip on the desk,
+            // not a system dialog.
+            if confirmDelete {
+                DeleteSlip(
+                    onRelease: {
+                        confirmDelete = false
+                        shredAndDelete()
+                    },
+                    onKeep: {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            confirmDelete = false
+                        }
+                    }
+                )
+                .transition(.opacity)
+            }
         }
         .toolbarVisibility(.hidden, for: .navigationBar)
         .statusBarHidden(true)
@@ -150,7 +156,9 @@ struct TicketStageView: View {
                         Label("共有", systemImage: "square.and.arrow.up")
                     }
                     Button(role: .destructive) {
-                        confirmDelete = true
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            confirmDelete = true
+                        }
                     } label: {
                         Label("手放す", systemImage: "trash")
                     }
@@ -205,9 +213,11 @@ struct TicketStageView: View {
             try? await Task.sleep(for: .milliseconds(420))
             Haptic.play(.stamp)
         }
-        withAnimation(.easeIn(duration: 0.95)) {
-            shredProgress = 1
-        } completion: {
+        // The hosted page animates the tear itself (see StagePage) — a
+        // plain assignment is the whole signal.
+        shredProgress = 1
+        Task {
+            try? await Task.sleep(for: .milliseconds(980))
             store.remove(ticket)
             shredProgress = 0
             if let next {

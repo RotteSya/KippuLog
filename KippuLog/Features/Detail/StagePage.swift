@@ -34,8 +34,8 @@ struct StagePage: View {
                         .offset(y: reflectionOffset(ticket))
                     hero(ticket)
                 }
-                .padding(.top, 74)
-                .padding(.bottom, 50)
+                .padding(.top, 64)
+                .padding(.bottom, 52)
 
                 Group {
                     Text(ticket.routeText)
@@ -45,7 +45,7 @@ struct StagePage: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                         .padding(.horizontal, 28)
-                        .padding(.bottom, 9)
+                        .padding(.bottom, 10)
 
                     if let date = ticket.travelDate {
                         Text(Editorial.shortDate(date))
@@ -57,20 +57,27 @@ struct StagePage: View {
                     StubCard(ticket: ticket)
                         .frame(maxWidth: 318)
                         .padding(.horizontal, 30)
-                        .padding(.top, 34)
+                        .padding(.top, 38)
 
+                    // The note shares the stub's column — one margin
+                    // system for everything below the exhibit.
                     memoBlock(ticket)
-                        .padding(.horizontal, 36)
-                        .padding(.top, 30)
+                        .frame(maxWidth: 318)
+                        .padding(.horizontal, 30)
+                        .padding(.top, 36)
                 }
                 // The page clears its throat while the gate takes the
                 // ticket — and again when the ticket departs for home.
                 .opacity(departing ? 0 : 1 - min(1, shredProgress * 2.6))
                 .animation(.easeOut(duration: 0.16), value: departing)
 
-                Spacer(minLength: 120)
+                Spacer(minLength: 96)
             }
         }
+        // The shred interpolates HERE, inside the hosted tree — a
+        // `withAnimation` outside the rail's hosting boundary arrives as
+        // a bare 0→1 jump, so the page owns its own tearing clock.
+        .animation(.easeIn(duration: 0.95), value: shredProgress)
         .scrollIndicators(.hidden)
         .onAppear {
             memoDraft = ticket.memo
@@ -146,19 +153,20 @@ struct StagePage: View {
 
     private func reflection(_ ticket: Ticket) -> some View {
         let mag = min(1, hypot(tilt.width, tilt.height) * 1.4)
-        // Mirror physics: strongest at the card's foot, dissolved into the
-        // table well before it could ghost the text below.
+        // Mirror physics: strongest at the card's foot, foreshortened the
+        // way a table view compresses a reflection, dissolved well before
+        // it could ghost the text below — a sheen, never a band.
         return heroCard(ticket)
-            .scaleEffect(x: 1, y: -1)
-            .blur(radius: 3.5)
-            .opacity(settled ? (0.13 - 0.08 * mag) * (1 - min(1, shredProgress * 2.6)) : 0)
+            .scaleEffect(x: 1, y: -0.62)
+            .blur(radius: 4.5)
+            .opacity(settled ? (0.10 - 0.06 * mag) * (1 - min(1, shredProgress * 2.6)) : 0)
             .mask {
                 LinearGradient(
                     stops: [
                         .init(color: .white, location: 0),
-                        .init(color: .white.opacity(0.55), location: 0.12),
-                        .init(color: .white.opacity(0.22), location: 0.26),
-                        .init(color: .clear, location: 0.44),
+                        .init(color: .white.opacity(0.5), location: 0.10),
+                        .init(color: .white.opacity(0.16), location: 0.22),
+                        .init(color: .clear, location: 0.36),
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -180,7 +188,10 @@ struct StagePage: View {
         } else {
             aspect = TicketArtView.aspect(for: ticket.kind)
         }
-        return width / aspect + 10
+        // Foreshortened to 0.62 about the centre — the empty 0.19h above
+        // the compressed render comes off the travel, so the sheen still
+        // starts right at the card's foot.
+        return width / aspect * 0.81 + 10
     }
 
     // MARK: Gestures

@@ -132,7 +132,7 @@ the words and buttons. The launch screen wears `LaunchBackground`
 | timeline pinch | the live pinch folds the page like a book closing (X-lean + deepening edge); release unfolds into the album commit. The colophon whispers the way in |
 | timeline ⇄ 収蔵帳 | pinch the magazine closed → the year album (kraft spreads, photo-corner mounts, month slips); pinch open to return |
 | detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
-| detail browse | horizontal paging, cards swap with bouncy springs |
+| detail browse | the shelf rail (StageRail): one continuous position under a CADisplayLink spring — the finger owns it, cards lean on a perspective rail, neighbours recede a step out of the lamp, the notch is a haptic, everything interruptible mid-flight |
 | detail dismiss | pinch-out or drag; card returns to its shelf |
 | viewfinder | one living guide, three acts: corner grips breathe around a MARS window → fly onto the detected ticket's corners (veil re-cuts itself around the quad, one animatable `Quad4` drives every shape) → a vermilion loop draws from the top centre both ways across the hold-still window and seals as the gate fires; the shutter dial mirrors the same clock |
 | capture moment | white blink, the frame freezes, the room goes near-black around the ticket — flatten and orientation work under the cover |
@@ -140,7 +140,8 @@ the words and buttons. The launch screen wears `LaunchBackground`
 | handoff | after the reading light, the ticket glides onto `ConfirmStage` — the one geometry the reveal also reads — settles completely, and the confirm arrives `.identity` under the fading chrome: a held object, never a crossfade dip. One `StudioBackdrop` (Animatable) lights all three phases; the lamp swings, rooms never crossfade |
 | reveal | the raw frame recedes and blurs; the ticket lifts into the lamp; the form-desk rises from fully below the frame |
 | keyboard | the ticket steps aside; the desk takes the whole room; save never sinks below the keys |
-| delete | 改札回収 — the card tears into strips that flutter and fall (shredFall layerEffect) |
+| delete | 改札の問い first — a torn paper slip slides onto the desk (手放す in shu / やめる in hairline; never a system dialog) — then 改札回収: the card tears into strips that flutter and fall (shredFall layerEffect) |
+| save | the desk withdraws, the ticket sinks toward the book and fades as the lights come up on the shelf already walking to the fresh plate |
 | scroll | subtle parallax + light sweep across cards |
 
 ## Haptics
