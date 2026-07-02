@@ -2,6 +2,35 @@
 
 Running build log. Newest first.
 
+## 2026-07-02 (evening) — the ticket comes home; the cover grows doors; 1.0.1 ships
+
+- [x] The zoom RETURN was the last "AI-slop" seam: closing a ticket
+      shrank the whole dark stage into a shelf slot (screenshot-
+      minimizing-with-white-veil, caught by video-frame dissection via
+      the new `-uiTestProbeReturn` rig). Now departure is staged —
+      facts dissolve, the lamp goes out riding into the pop, and the
+      navigation container behind the studio is the same paper as the
+      page beneath: the system pop shrinks a paper window over a paper
+      page, so the only visible motion is the lone lit ticket springing
+      home. Works identically from 誌面 and 収蔵帳 (which now scrolls
+      its spread during stage paging so the slot is there to catch it).
+      A full custom overlay-flight engine (FlightBoard) was built,
+      outclassed by this simpler cut, and removed.
+- [x] The cover grew its two doors — 収蔵帳 / 奥付 in hairline-box small
+      print (the album mirrors: 誌面 / 奥付). The pinch remains the
+      connoisseur route; the colophon still whispers it.
+- [x] 奥付 — the colophon page holds the settings, in the paper voice:
+      あしらい (おまかせ/紙/夜, three kind-stamps; sheets re-apply the
+      scheme themselves), 見本の旅 (lay out / tidy away), 開幕をもう一度,
+      しるべ (support / privacy / letter to the editors), and the
+      imprint (seal, figures, 第 N 版). OkuzukeTests walk every door.
+- [x] 1.0.1 shipped: version created, build 5 archived/exported/
+      uploaded via asc, What's New in the quiet voice, and the deferred
+      URL flip executed (support/marketing on the version localization
+      + privacyPolicyUrl on app-info now point at
+      rottesya.github.io/KippuLog). Validation clean; submitted —
+      WAITING_FOR_REVIEW (submission 36bb7a76).
+
 ## 2026-07-02 — 開幕: the machine prints your first ticket
 
 Round two of the "looks AI-generated" rebuttal — this time the missing
