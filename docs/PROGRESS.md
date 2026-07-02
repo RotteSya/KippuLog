@@ -2,6 +2,65 @@
 
 Running build log. Newest first.
 
+## 2026-07-02 — 開幕: the machine prints your first ticket
+
+Round two of the "looks AI-generated" rebuttal — this time the missing
+opening, the seams between rooms, and the flaws only full-res
+screenshots confess.
+
+- [x] The welcome ceremony (`Features/Welcome/`): first launch dims the
+      house lights over the paper page, a lamp catches (filament
+      flicker), きっぷログ presses in glyph by glyph, the hanko stamps
+      with an ink-bloom ring, and a ticket machine prints a 見本 in nine
+      line-feeds — punches it (chad tumbling out), releases it into the
+      hand to tilt and admire (gloss answering), then the specimen dives
+      into the punch button and the lights come up on the live page.
+      Both exits (最初の一枚を撮る / まずは見てまわる) verified e2e;
+      never replays; tap skips; Reduce Motion lands settled.
+- [x] The engine is pure Core Animation on one CADisplayLink clock —
+      a single `evaluate(t)` timeline (no scheduled springs), so the
+      show is deterministic and scrubbable. The specimen face is
+      CoreGraphics: counter-phase guilloche bundles, pulp mottle, fibre
+      flecks, letterpress rows, full-width numerals, a diagonal 見本
+      strike in 朱 — the same paper physics as the Metal plates.
+- [x] Launch wears the paper: `UILaunchScreen` color asset (生成り /
+      dark studio) kills the white flash; the Info.plist merges via
+      INFOPLIST_FILE + a synchronized-folder membership exception.
+- [x] The gate→confirm handoff is now one held object: `ConfirmStage`
+      is the single geometry both the gate's final glide and the reveal
+      read; the confirm inserts with `.identity` under the fading gate
+      chrome (no luminance dip, no jump — pixel-diff verified). One
+      `StudioBackdrop` (now `Animatable`) lights all three capture
+      phases; the lamp swings, rooms never crossfade.
+- [x] Entering/leaving capture is light, not a card: the cover presents
+      with no system slide; the studio dims in over the page (0.38s)
+      and lights up on save while the shelf walks to the fresh plate.
+- [x] Flaws full-res screenshots confessed, fixed: the stage
+      reflection's mask ran backwards (ghosted the stub — now a real
+      mirror, gone by 44%); timeline text collided with the clock and
+      the punch button (PaperFade edges); the kind chips overflowed —
+      その他 was *entirely off-screen* on 402pt phones (six equal
+      stamps now); the confirm desk wore a sheet-grabber it didn't
+      honour (removed).
+- [x] The masthead seal stamps in once per session (ink-bloom, stamp
+      haptic); the colophon seal answers a touch with a fresh press.
+      Empty state wears the masthead — the cover exists before the
+      first ticket.
+- [x] Full suite green (unit + 15 UI tests, incl. two new welcome
+      walks); light/dark sweeps; burst-frame verification of welcome,
+      exit, capture entrance, gate handoff.
+
+### Decisions
+
+- The welcome is UIKit/CA, not SwiftUI springs — cinematic timing wants
+  one master clock. SwiftUI above supplies only copy and buttons.
+- `-uiTestReset` marks the ceremony as seen (walk tests start on the
+  shelf); `-uiTestWelcome` forces it; `-uiTestWelcomeAutoExit` drives
+  the exit for screenshot bursts.
+- The specimen face is drawn in CG (not ImageRenderer of the SwiftUI
+  plate) — Metal colorEffects don't rasterize offscreen reliably, and
+  the engine wants a bitmap it owns.
+
 ## 2026-06-12 — the viewfinder lives, the scan reads, the frames hold
 
 Answering the "looks AI-generated" pile-on: the boring capture screen,

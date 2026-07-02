@@ -30,7 +30,13 @@ ticket gate.
    ticket could physically do.
 5. **Editorial, not utilitarian.** The timeline reads like a travel
    magazine's table of contents: kanji month headers, serif figures,
-   hairline rules, generous margins.
+   hairline rules, generous margins. The page runs out into paper at
+   its edges (`PaperFade`) — type never collides with the clock above
+   or the punch below.
+6. **No false affordances.** Nothing suggests an interaction it doesn't
+   honour: no sheet grabbers on desks that don't drag, no control ever
+   sliced off at a screen edge — all six kind stamps share the row as
+   equals on every width of phone.
 
 ## Palette
 
@@ -93,10 +99,31 @@ Rendered purely from data — used only when there is no photo:
   never flat black, never banded. Hero tickets cast a faint table
   reflection that fades as they lift.
 
+## The opening ceremony (first launch only)
+
+開幕 — the house lights dim over the paper page, a lamp catches, the
+wordmark presses in glyph by glyph, the hanko stamps (ink-bloom ring),
+and a ticket machine prints a 見本 in nine line-feeds: guilloche stock,
+「ここから → どこまでも」, fare printed as ¥＊＊＊＊, a diagonal 見本
+strike in 朱. The gate punches it (the chad tumbles out), the ticket
+drops into the hand — it tilts, gloss answering — and the two exits are
+the app's whole pitch: 最初の一枚を撮る, or まずは見てまわる. Either
+way the specimen dives into the punch button (which pops once): the
+ticket itself teaches where the gate lives.
+
+Rules: runs once (`hasWelcomed`); any tap skips to the settled scene;
+Reduce Motion opens settled; the engine is Core Animation on one
+CADisplayLink clock (`Features/Welcome/`) — SwiftUI above carries only
+the words and buttons. The launch screen wears `LaunchBackground`
+(生成り / dark studio) so the app never flashes white before the show.
+
 ## Motion vocabulary
 
 | Moment | Treatment |
 |---|---|
+| first launch | the opening ceremony above; lights-up hands off to the masthead, whose seal stamps in once per session |
+| open capture | no system slide — the studio dims in over the page (0.38s), the same lights that opened the app |
+| leave capture | lights up over a shelf already walking to the fresh plate; the punched-in sweep lands as the paper returns |
 | timeline → detail | zoom transition; the photo settles under the lamp |
 | timeline ⇄ 収蔵帳 | pinch the magazine closed → the year album (kraft spreads, photo-corner mounts, month slips); pinch open to return |
 | detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
@@ -105,7 +132,7 @@ Rendered purely from data — used only when there is no photo:
 | viewfinder | one living guide, three acts: corner grips breathe around a MARS window → fly onto the detected ticket's corners (veil re-cuts itself around the quad, one animatable `Quad4` drives every shape) → a vermilion loop draws from the top centre both ways across the hold-still window and seals as the gate fires; the shutter dial mirrors the same clock |
 | capture moment | white blink, the frame freezes, the room goes near-black around the ticket — flatten and orientation work under the cover |
 | capture | 改札 reader head (machined bevel, marching shu chevrons): the ticket rises from below the frame, leans back, feeds, squishes, gets bitten — the head flinches and the punched chad flutters out of the slot |
-| handoff | after the reading light, the ticket glides to the exact spot the confirm reveal occupies and the crossfade is a handoff, not a jump; the raw frame still wears the punch, which heals inside the lift |
+| handoff | after the reading light, the ticket glides onto `ConfirmStage` — the one geometry the reveal also reads — settles completely, and the confirm arrives `.identity` under the fading chrome: a held object, never a crossfade dip. One `StudioBackdrop` (Animatable) lights all three phases; the lamp swings, rooms never crossfade |
 | reveal | the raw frame recedes and blurs; the ticket lifts into the lamp; the form-desk rises from fully below the frame |
 | keyboard | the ticket steps aside; the desk takes the whole room; save never sinks below the keys |
 | delete | 改札回収 — the card tears into strips that flutter and fall (shredFall layerEffect) |

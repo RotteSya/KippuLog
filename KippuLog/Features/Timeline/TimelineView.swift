@@ -343,7 +343,7 @@ struct TimelineView: View {
 
     private var colophon: some View {
         VStack(spacing: 12) {
-            HankoSeal(size: 15)
+            RestampableSeal()
             Text("全 \(store.tickets.count) 枚 — \(Editorial.yen(store.totalSpent))")
                 .font(Typo.serifFigure(13, weight: .regular))
                 .foregroundStyle(Ink.textSoft)
@@ -353,6 +353,44 @@ struct TimelineView: View {
                 .foregroundStyle(Ink.textFaint)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// The colophon's seal answers a touch with a fresh press of ink —
+/// a small pleasure for whoever reads to the end of the issue.
+private struct RestampableSeal: View {
+    @State private var pressT = 0
+    @State private var bloom = false
+
+    var body: some View {
+        Button {
+            Haptic.play(.stamp)
+            bloom = false
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.5)) {
+                pressT += 1
+            }
+            withAnimation(.easeOut(duration: 0.6).delay(0.04)) {
+                bloom = true
+            }
+        } label: {
+            HankoSeal(size: 15)
+                .keyframeAnimator(initialValue: 1.0, trigger: pressT) { view, scale in
+                    view.scaleEffect(scale)
+                } keyframes: { _ in
+                    KeyframeTrack {
+                        CubicKeyframe(1.28, duration: 0.10)
+                        SpringKeyframe(1.0, duration: 0.34, spring: .init(response: 0.3, dampingRatio: 0.55))
+                    }
+                }
+                .background {
+                    Circle()
+                        .stroke(Ink.shu.opacity(bloom ? 0 : 0.5), lineWidth: 1.1)
+                        .scaleEffect(bloom ? 2.6 : 0.6)
+                        .accessibilityHidden(true)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("きっぷログの落款")
     }
 }
 

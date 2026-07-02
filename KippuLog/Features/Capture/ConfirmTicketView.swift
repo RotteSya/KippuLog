@@ -102,17 +102,10 @@ struct ConfirmTicketView: View {
     private var desk: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 0) {
-                    Capsule()
-                        .fill(Ink.rule)
-                        .frame(width: 34, height: 4)
-                        .padding(.top, 12)
-                        .padding(.bottom, 18)
-
-                    TicketFormFields(ticket: $draft)
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 16)
-                }
+                TicketFormFields(ticket: $draft)
+                    .padding(.top, 26)
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 16)
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)

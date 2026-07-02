@@ -83,44 +83,46 @@ struct TicketFormFields: View {
     // MARK: Kind stamps
 
     /// Selection as 判子 imprints — the chosen kind is pressed in shu,
-    /// each stamp a hair off true.
+    /// each stamp a hair off true. The five kinds are the complete MARS
+    /// set, so they share the row equally — every width of phone shows
+    /// all five whole, nothing sliced at the edge.
     private var kindChips: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 9) {
-                ForEach(Array(TicketKind.allCases.enumerated()), id: \.element) { index, kind in
-                    let isOn = ticket.kind == kind
-                    Button {
-                        Haptic.play(.stamp)
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.6)) {
-                            ticket.kind = kind
-                        }
-                    } label: {
-                        Text(kind.label)
-                            .font(Typo.gothic(12, bold: true))
-                            .tracking(1)
-                            .foregroundStyle(isOn ? Color(hex: 0xF7F3EB) : Ink.textSoft)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 8)
-                            .background {
-                                RoundedRectangle(cornerRadius: 5)
-                                    .fill(isOn ? Ink.shu : .clear)
-                            }
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 5)
-                                    .strokeBorder(
-                                        isOn ? Ink.shu : Ink.rule,
-                                        lineWidth: isOn ? 0 : 1
-                                    )
-                            }
-                            .rotationEffect(.degrees(isOn ? stampTilt(index) : 0))
-                            .scaleEffect(isOn ? 1.04 : 1)
+        HStack(spacing: 8) {
+            ForEach(Array(TicketKind.allCases.enumerated()), id: \.element) { index, kind in
+                let isOn = ticket.kind == kind
+                Button {
+                    Haptic.play(.stamp)
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.6)) {
+                        ticket.kind = kind
                     }
-                    .buttonStyle(.plain)
+                } label: {
+                    Text(kind.label)
+                        .font(Typo.gothic(12, bold: true))
+                        .tracking(0.6)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .foregroundStyle(isOn ? Color(hex: 0xF7F3EB) : Ink.textSoft)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background {
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(isOn ? Ink.shu : .clear)
+                        }
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(
+                                    isOn ? Ink.shu : Ink.rule,
+                                    lineWidth: isOn ? 0 : 1
+                                )
+                        }
+                        .rotationEffect(.degrees(isOn ? stampTilt(index) : 0))
+                        .scaleEffect(isOn ? 1.04 : 1)
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.vertical, 3)
         }
-        .scrollIndicators(.hidden)
+        .padding(.vertical, 3)
     }
 
     private func stampTilt(_ index: Int) -> Double {
