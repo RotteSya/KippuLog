@@ -133,6 +133,43 @@ static inline float fbm(float2 p) {
 }
 
 // ---------------------------------------------------------------------------
+// studioAir — the lamp's cone has air in it. A handful of dust motes
+// drift up through the pool of light, each a soft gaussian point on its
+// own slow sinusoid, lit only where the pool is lit and never brighter
+// than a breath. Layered over studioLight on the stage.
+// ---------------------------------------------------------------------------
+
+[[ stitchable ]] half4 studioAir(float2 position, half4 color, float2 size,
+                                 float2 center, float radius, float time) {
+    float2 uv = position / max(size, float2(1.0));
+    float2 d2 = (uv - center) * float2(size.x / size.y, 1.0);
+    float pool = exp(-dot(d2, d2) / max(radius * radius, 0.001) * 1.85);
+    if (pool < 0.05) { return color; }
+
+    float glow = 0.0;
+    const float motes = 11.0;
+    for (float i = 0.0; i < motes; i += 1.0) {
+        float seed = i * 17.13 + 4.7;
+        float speed = 0.014 + fract(seed * 0.311) * 0.020;
+        // Each mote climbs slowly, wrapping through the frame, swaying.
+        float y = fract(fract(seed * 0.777) - time * speed);
+        float x = fract(seed * 0.531)
+                + sin(time * (0.10 + fract(seed * 0.213) * 0.16) + seed) * 0.055;
+        float2 p = float2(x, y);
+        float2 dm = (uv - p) * float2(size.x / size.y, 1.0);
+        float dist2 = dot(dm, dm);
+        // Size and twinkle are the mote's own.
+        float sz = 7.0e-6 + fract(seed * 0.157) * 1.3e-5;
+        float tw = 0.60 + 0.40 * sin(time * (0.5 + fract(seed * 0.371)) + seed * 3.1);
+        glow += exp(-dist2 / sz) * tw;
+    }
+
+    half3 warmDust = half3(1.0, 0.90, 0.72);
+    half3 col = color.rgb + warmDust * half(glow * pool * 0.16);
+    return half4(col, color.a);
+}
+
+// ---------------------------------------------------------------------------
 // holoSheen — anisotropic paper gloss that answers the hand.
 // A soft white gloss band sweeps with tilt; only at strong angles do
 // faint spectral fringes bloom at the band's edges. Calm by default.

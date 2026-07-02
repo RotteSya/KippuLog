@@ -611,7 +611,7 @@ final class WelcomeEngine: UIView {
     }
 
     private func evaluateExit(_ t: Double, target: CGPoint, start: Double) {
-        let dur = 0.62
+        let dur = 0.70
         let p = Ease.linstep(t, start, start + dur)
         let e = Ease.inCubic(p)
 

@@ -10,6 +10,7 @@ struct StagePage: View {
 
     @State private var tilt: CGSize = .zero
     @State private var settled = false
+    @State private var arrivalSweep: Double = -0.25
     @State private var showInspector = false
     @State private var memoDraft = ""
     @FocusState private var memoFocused: Bool
@@ -73,6 +74,10 @@ struct StagePage: View {
             withAnimation(.spring(response: 0.65, dampingFraction: 0.72).delay(0.05)) {
                 settled = true
             }
+            // The lamp finds the ticket as it settles — one pass of light.
+            withAnimation(.easeInOut(duration: 1.0).delay(0.30)) {
+                arrivalSweep = 1.25
+            }
         }
         .scrollDismissesKeyboard(.interactively)
         .fullScreenCover(isPresented: $showInspector) {
@@ -109,6 +114,7 @@ struct StagePage: View {
 
     private func hero(_ ticket: Ticket) -> some View {
         heroCard(ticket)
+            .lightSweep(progress: arrivalSweep)
             .rotation3DEffect(.degrees(Double(-tilt.height) * 13), axis: (x: 1, y: 0, z: 0), perspective: 0.5)
             .rotation3DEffect(.degrees(Double(tilt.width) * 15), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
             .shadow(

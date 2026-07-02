@@ -43,6 +43,19 @@ struct TimelineView: View {
                         }
                     }
                     .scaleEffect(pinchLive)
+                    // The pinch folds the page as a book closing — a few
+                    // degrees of lean and a deepening edge; releasing
+                    // unfolds it into the commit spring.
+                    .rotation3DEffect(
+                        .degrees(Double(1 - pinchLive) * 46),
+                        axis: (x: 1, y: 0, z: 0),
+                        perspective: 0.30
+                    )
+                    .shadow(
+                        color: .black.opacity(Double(1 - pinchLive) * 1.4),
+                        radius: 30,
+                        y: 18
+                    )
                     .transition(.scale(scale: 0.88).combined(with: .opacity))
                 }
             }
@@ -351,6 +364,12 @@ struct TimelineView: View {
                 .font(Typo.mincho(11, light: true))
                 .tracking(5)
                 .foregroundStyle(Ink.textFaint)
+
+            Text("つまんで 収蔵帳へ")
+                .font(Typo.caption(8.5))
+                .tracking(2.5)
+                .foregroundStyle(Ink.textFaint.opacity(0.75))
+                .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
     }

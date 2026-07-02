@@ -21,7 +21,7 @@ struct TicketStageView: View {
 
     var body: some View {
         ZStack {
-            StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.26), radius: 0.85, warmth: 0.55)
+            StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.26), radius: 0.85, warmth: 0.55, air: true)
 
             TabView(selection: $pageID) {
                 ForEach(store.tickets) { ticket in
