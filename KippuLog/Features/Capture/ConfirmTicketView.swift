@@ -36,10 +36,6 @@ struct ConfirmTicketView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, ConfirmStage.topPadding)
                         .padding(.bottom, 26)
-                        // Saving: the ticket sinks toward the book below.
-                        .offset(y: saving ? 52 : 0)
-                        .scaleEffect(saving ? 0.95 : 1)
-                        .opacity(saving ? 0 : 1)
                         .transition(
                             .scale(scale: 0.8, anchor: .top)
                                 .combined(with: .opacity)
@@ -53,6 +49,18 @@ struct ConfirmTicketView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .task { await choreograph() }
+        .task {
+            #if DEBUG
+            // `-uiTestProbeSave` — the desk presses its own save on a
+            // fixed clock, so an external recording can dissect the
+            // save-to-shelf flight.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestProbeSave") {
+                try? await Task.sleep(for: .milliseconds(1900))
+                Haptic.play(.success)
+                onSave()
+            }
+            #endif
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
                 keyboardUp = true

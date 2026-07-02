@@ -11,7 +11,8 @@ struct StagePage: View {
     var departing = false
 
     @State private var tilt: CGSize = .zero
-    @State private var settled = false
+    // The lift seats the hero before this page is ever seen.
+    @State private var settled = true
     @State private var arrivalSweep: Double = -0.25
     @State private var showInspector = false
     @State private var memoDraft = ""
@@ -81,10 +82,6 @@ struct StagePage: View {
         .scrollIndicators(.hidden)
         .onAppear {
             memoDraft = ticket.memo
-            guard !settled else { return }
-            withAnimation(.spring(response: 0.65, dampingFraction: 0.72).delay(0.05)) {
-                settled = true
-            }
             // The lamp finds the ticket as it settles — one pass of light.
             withAnimation(.easeInOut(duration: 1.0).delay(0.30)) {
                 arrivalSweep = 1.25

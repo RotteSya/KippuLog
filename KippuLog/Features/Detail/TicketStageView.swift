@@ -5,7 +5,7 @@ import SwiftUI
 /// the zoom transition) to put the magazine back on the table.
 struct TicketStageView: View {
     @Environment(TicketStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
+    @Environment(LiftEngine.self) private var lift: LiftEngine?
     @Binding var selection: Ticket?
 
     @State private var pageID: UUID
@@ -15,9 +15,9 @@ struct TicketStageView: View {
     @State private var shredProgress: Double = 0
     /// The departure: facts and chrome dissolve, then the ticket flies.
     @State private var departing = false
-    /// Lights out — fired *with* the pop, so the room dissolves inside
-    /// the shrinking window while the ticket rides it home.
-    @State private var lightsOut = false
+    /// Arrival: the lift seated the hero; the captions and chrome follow
+    /// a breath later, like a curator laying out the cards.
+    @State private var furnished = false
 
     init(selection: Binding<Ticket?>) {
         _selection = selection
@@ -27,8 +27,6 @@ struct TicketStageView: View {
     var body: some View {
         ZStack {
             StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.26), radius: 0.85, warmth: 0.55, air: true)
-                .opacity(lightsOut ? 0 : 1)
-                .animation(.easeOut(duration: 0.22), value: lightsOut)
 
             StageRail(
                 tickets: store.tickets,
@@ -38,17 +36,24 @@ struct TicketStageView: View {
             )
             .ignoresSafeArea(edges: .bottom)
         }
-        // Behind the studio, the window is the same paper as the page it
-        // shrinks onto — when the lights go out mid-pop, the room gives
-        // way to paper-on-paper and the lone ticket rides the window home.
-        .containerBackground(Ink.background, for: .navigation)
+        .task {
+            // The lift hands over on identical pixels; the furniture
+            // follows a breath later.
+            guard !furnished else { return }
+            try? await Task.sleep(for: .milliseconds(90))
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
+                furnished = true
+            }
+        }
         .scaleEffect(pinchScale)
         .opacity(Double(0.4 + pinchScale * 0.6))
         .simultaneousGesture(pinchToClose)
         .overlay(alignment: .top) {
             chrome
-                .opacity(departing ? 0 : 1)
+                .opacity(departing || !furnished ? 0 : 1)
+                .offset(y: furnished ? 0 : -10)
                 .animation(.easeOut(duration: 0.16), value: departing)
+                .animation(.easeOut(duration: 0.30), value: furnished)
         }
         .onChange(of: pageID) { old, new in
             // The rail's notch already spoke (haptic); keep the zoom
@@ -97,23 +102,25 @@ struct TicketStageView: View {
 
     // MARK: Departure
 
-    /// Departure: the facts dissolve, the room's lights go out — and the
-    /// system pop is left shrinking a lone lit ticket home to its slot,
-    /// never a dark rectangle of room.
+    /// Departure: the facts dissolve, then the lift takes the lone lit
+    /// ticket home to its slot while this room hands itself over to the
+    /// engine's identical one.
     private func flyHome() {
         guard !departing else { return }
         Haptic.play(.tick)
         withAnimation(.easeOut(duration: 0.16)) { departing = true }
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { pinchScale = 1 }
         Task {
-            // Beat one: the facts dissolve. Beat two: the lamp goes out,
-            // leaving the lone ticket on paper. Beat three: the pop rides
-            // the ticket home — a paper window over a paper page, so the
-            // only thing seen moving is the ticket itself.
-            try? await Task.sleep(for: .milliseconds(140))
-            lightsOut = true
-            try? await Task.sleep(for: .milliseconds(90))
-            dismiss()
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let ticket = currentTicket else { selection = nil; return }
+            let window = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }.first?.keyWindow
+            lift?.close(
+                ticket,
+                container: window?.bounds ?? UIScreen.main.bounds,
+                safeTop: window?.safeAreaInsets.top ?? 59
+            )
+            selection = nil
         }
     }
 
@@ -224,7 +231,12 @@ struct TicketStageView: View {
                 pageID = next.id
                 selection = next
             } else {
-                dismiss()
+                // The collection emptied — the lights simply come up.
+                withAnimation(.easeOut(duration: 0.16)) { departing = true }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(170))
+                    selection = nil
+                }
             }
         }
     }

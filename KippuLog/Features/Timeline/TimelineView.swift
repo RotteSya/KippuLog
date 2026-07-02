@@ -5,10 +5,10 @@ import SwiftUI
 /// studio; the punch button below opens the gate.
 struct TimelineView: View {
     @Environment(TicketStore.self) private var store
-    @Namespace private var zoomNamespace
     @State private var selectedTicket: Ticket?
-    @State private var zoomSourceKey = ""
     @State private var showCapture = false
+    /// The lift — every page⇄stage journey is one of its flights.
+    @State private var lift = LiftEngine()
     @State private var showAlbum = ProcessInfo.processInfo.arguments.contains("-uiTestAlbum")
     @State private var pinchLive: CGFloat = 1
     @State private var albumPinchLive: CGFloat = 1
@@ -22,9 +22,27 @@ struct TimelineView: View {
     @State private var showOkuzuke = false
 
     var body: some View {
-        NavigationStack {
+        GeometryReader { proxy in
             stackRoot
+                .overlay {
+                    // The stage — mounted the frame the lift seats its
+                    // ticket, already wearing identical pixels. Identity
+                    // transition: the engine owns every visible motion,
+                    // the mount itself must be a hard swap.
+                    if selectedTicket != nil {
+                        TicketStageView(selection: $selectedTicket)
+                            .environment(lift)
+                            .transition(.identity)
+                            .zIndex(2)
+                    }
+                }
+                .overlay {
+                    LiftOverlay(engine: lift)
+                        .zIndex(3)
+                }
+                .onAppear { configureLift(proxy: proxy) }
         }
+        .environment(lift)
         .overlay(alignment: .bottom) {
             if selectedTicket == nil {
                 PunchButton {
@@ -78,8 +96,7 @@ struct TimelineView: View {
             if ProcessInfo.processInfo.arguments.contains("-uiTestProbeReturn") {
                 try? await Task.sleep(for: .seconds(2))
                 if let first = store.tickets.first {
-                    zoomSourceKey = (showAlbum ? "a-" : "t-") + first.id.uuidString
-                    selectedTicket = first
+                    openStage(first, slotKey: (showAlbum ? "a-" : "t-") + first.id.uuidString)
                 }
             }
             #endif
@@ -90,11 +107,9 @@ struct TimelineView: View {
             ZStack {
                 if showAlbum {
                     AlbumView(
-                        zoomNamespace: zoomNamespace,
                         selection: selectedTicket,
                         onOpen: { ticket in
-                            zoomSourceKey = "a-\(ticket.id)"
-                            selectedTicket = ticket
+                            openStage(ticket, slotKey: "a-\(ticket.id)")
                         },
                         onJumpMonth: jumpToMonth,
                         onCloseAlbum: {
@@ -161,20 +176,41 @@ struct TimelineView: View {
                 .allowsHitTesting(false)
             }
             .background(Ink.background)
-            .toolbarVisibility(.hidden, for: .navigationBar)
-            .navigationDestination(item: $selectedTicket) { ticket in
-                TicketStageView(selection: $selectedTicket)
-                    .navigationTransition(.zoom(
-                        sourceID: zoomSourceKey.isEmpty ? "t-\(ticket.id)" : zoomSourceKey,
-                        in: zoomNamespace
-                    ))
-            }
             .onChange(of: selectedTicket) { old, new in
-                // Stage paging: keep the zoom anchored to the right card in
-                // whichever shelf is showing.
+                // Stage paging: keep the landing slot under whichever card
+                // is on stage, in whichever shelf is showing.
                 guard old != nil, let new else { return }
-                zoomSourceKey = (showAlbum ? "a-" : "t-") + new.id.uuidString
+                lift.activeKey = (showAlbum ? "a-" : "t-") + new.id.uuidString
             }
+    }
+
+    // MARK: The lift
+
+    /// The engine reads real object aspects for hero geometry; its open
+    /// flight mounts the stage the frame it seats.
+    private func configureLift(proxy: GeometryProxy) {
+        LiftEngine.aspectSource = { [weak store] ticket in
+            guard let store else { return TicketArtView.aspect(for: ticket.kind) }
+            if let cutout = store.cutout(for: ticket), cutout.size.height > 0 {
+                return cutout.size.width / cutout.size.height
+            }
+            if store.photo(for: ticket) != nil, let raw = ticket.photoAspect {
+                return raw
+            }
+            return TicketArtView.aspect(for: ticket.kind)
+        }
+    }
+
+    /// Tap a card: the lift raises it into the lamp, then the stage takes
+    /// over on identical pixels.
+    private func openStage(_ ticket: Ticket, slotKey: String) {
+        guard selectedTicket == nil, lift.flight == nil else { return }
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }.first?.keyWindow
+        let container = window?.bounds ?? UIScreen.main.bounds
+        let safeTop = window?.safeAreaInsets.top ?? 59
+        lift.onSeated = { selectedTicket = ticket }
+        lift.open(ticket, fromSlot: slotKey, container: container, safeTop: safeTop)
     }
 
     /// Open the gate with no system slide — the capture room dims itself
@@ -283,15 +319,15 @@ struct TimelineView: View {
                 }
             }
             .onChange(of: store.lastAddedID) { _, new in
-                // A fresh ticket just punched in — walk to it and let the
-                // studio light sweep across the plate.
+                // A fresh ticket just punched in. The shelf jumps to its
+                // slot while the capture cover still hides the page — the
+                // lift needs a stable slot to land on — then the studio
+                // light sweeps the plate as it settles.
                 guard let new else { return }
                 Task {
-                    try? await Task.sleep(for: .milliseconds(450))
-                    withAnimation(.spring(response: 0.7, dampingFraction: 0.9)) {
-                        proxy.scrollTo(new, anchor: .center)
-                    }
-                    try? await Task.sleep(for: .milliseconds(650))
+                    try? await Task.sleep(for: .milliseconds(60))
+                    proxy.scrollTo(new, anchor: .center)
+                    try? await Task.sleep(for: .milliseconds(780))
                     highlightID = new
                     try? await Task.sleep(for: .milliseconds(1400))
                     highlightID = nil
@@ -349,10 +385,8 @@ struct TimelineView: View {
                     number: numbers[ticket.id] ?? 0,
                     alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
                     highlighted: highlightID == ticket.id,
-                    zoomNamespace: zoomNamespace,
                     onOpen: {
-                        zoomSourceKey = "t-\(ticket.id)"
-                        selectedTicket = ticket
+                        openStage(ticket, slotKey: "t-\(ticket.id)")
                     }
                 )
                 .id(ticket.id)

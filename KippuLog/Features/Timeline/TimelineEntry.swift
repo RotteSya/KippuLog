@@ -8,11 +8,11 @@ import SwiftUI
 /// entry (or pinching the card outward) sends the *ticket* flying into its
 /// stage, not the surrounding text.
 struct TimelineEntry: View {
+    @Environment(LiftEngine.self) private var lift: LiftEngine?
     let ticket: Ticket
     var number = 0
     var alignment: HorizontalAlignment = .leading
     var highlighted = false
-    let zoomNamespace: Namespace.ID
     var onOpen: () -> Void = {}
 
     @State private var sweep: Double = -0.25
@@ -28,7 +28,12 @@ struct TimelineEntry: View {
             TicketCard(ticket: ticket)
                 .lightSweep(progress: sweep)
                 .frame(maxWidth: plateWidth)
-                .matchedTransitionSource(id: "t-\(ticket.id)", in: zoomNamespace)
+                .onGeometryChange(for: CGRect.self) { proxy in
+                    proxy.frame(in: .global)
+                } action: { frame in
+                    // The slot's printed place — where the lift lands.
+                    lift?.homes["t-\(ticket.id)"] = frame
+                }
                 .scaleEffect(pinchScale, anchor: .center)
                 .scrollTransition(.interactive) { content, phase in
                     content

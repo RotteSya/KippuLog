@@ -7,6 +7,7 @@ import PhotosUI
 ///   parallel) → confirm (reveal + edit + save)
 struct CaptureFlowView: View {
     @Environment(TicketStore.self) private var store
+    @Environment(LiftEngine.self) private var lift: LiftEngine?
     @Environment(\.dismiss) private var dismiss
 
     /// Image handed in from drag & drop — skips straight to the gate.
@@ -438,15 +439,47 @@ struct CaptureFlowView: View {
     }
 
     private func save() {
-        // Add first — the shelf beneath starts its walk-and-sweep to the
-        // fresh plate while the ticket is still sinking toward the book.
+        // Add first — the shelf beneath jumps to the fresh slot while the
+        // cover still hides it, so the lift has a stable place to land.
         store.add(draft, photo: scan, cutout: cutout)
         camera.stop()
+        // The desk withdraws; the ticket holds its seat for the handoff.
         withAnimation(.spring(response: 0.46, dampingFraction: 0.9)) { saving = true }
         Task {
-            try? await Task.sleep(for: .milliseconds(170))
-            withAnimation(.easeOut(duration: 0.32)) { roomLit = false }
-            try? await Task.sleep(for: .milliseconds(330))
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let saved = store.tickets.first(where: { $0.id == draft.id }),
+                  let lift else {
+                withAnimation(.easeOut(duration: 0.30)) { roomLit = false }
+                try? await Task.sleep(for: .milliseconds(300))
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { dismiss() }
+                return
+            }
+            // Where the confirm seats the card right now, in window space.
+            let window = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }.first?.keyWindow
+            let bounds = window?.bounds ?? UIScreen.main.bounds
+            let insets = window?.safeAreaInsets ?? .zero
+            let safeSize = CGSize(
+                width: bounds.width - insets.left - insets.right,
+                height: bounds.height - insets.top - insets.bottom
+            )
+            let rawAspect = min(max(scan!.size.width / max(scan!.size.height, 1), 1.10), 3.20)
+            let stageHeight = ConfirmStage.fitted(aspect: rawAspect, in: safeSize).height
+            let cardAspect = LiftEngine.aspectSource?(saved)
+                ?? TicketArtView.aspect(for: saved.kind)
+            let cardWidth = min(saved.kind.isEdmondson ? 250 : 305, bounds.width - 60)
+            let cardHeight = cardWidth / cardAspect
+            let from = CGRect(
+                x: bounds.midX - cardWidth / 2,
+                y: insets.top + ConfirmStage.topPadding + stageHeight / 2 - cardHeight / 2,
+                width: cardWidth,
+                height: cardHeight
+            )
+            // The lift sails it into the book; the cover leaves silently
+            // beneath the engine's identical room.
+            lift.save(saved, from: from, toSlot: "t-\(saved.id)")
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) { dismiss() }

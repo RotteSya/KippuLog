@@ -6,7 +6,6 @@ import SwiftUI
 /// stamp) to dive back in.
 struct AlbumView: View {
     @Environment(TicketStore.self) private var store
-    let zoomNamespace: Namespace.ID
     /// The ticket on stage, if any — the spread scrolls so its mount is
     /// on the page when the return flight lands.
     var selection: Ticket?
@@ -27,7 +26,6 @@ struct AlbumView: View {
                         YearSpread(
                             year: group.year,
                             months: group.months,
-                            zoomNamespace: zoomNamespace,
                             onOpen: onOpen,
                             onJumpMonth: onJumpMonth
                         )
@@ -108,7 +106,6 @@ private struct YearSpread: View {
     @Environment(TicketStore.self) private var store
     let year: Int
     let months: [(month: DateComponents, tickets: [Ticket])]
-    let zoomNamespace: Namespace.ID
     var onOpen: (Ticket) -> Void
     var onJumpMonth: (DateComponents) -> Void
 
@@ -142,7 +139,6 @@ private struct YearSpread: View {
                     AlbumMini(
                         ticket: item.ticket,
                         monthSlip: item.monthStart,
-                        zoomNamespace: zoomNamespace,
                         onOpen: onOpen,
                         onJumpMonth: onJumpMonth
                     )
@@ -211,9 +207,9 @@ private struct YearSpread: View {
 /// with a pasted month slip when it opens a new month.
 private struct AlbumMini: View {
     @Environment(TicketStore.self) private var store
+    @Environment(LiftEngine.self) private var lift: LiftEngine?
     let ticket: Ticket
     var monthSlip: DateComponents?
-    let zoomNamespace: Namespace.ID
     var onOpen: (Ticket) -> Void
     var onJumpMonth: (DateComponents) -> Void
 
@@ -258,7 +254,12 @@ private struct AlbumMini: View {
         }
         .rotationEffect(.degrees(restingAngle))
         .contentShape(Rectangle())
-        .matchedTransitionSource(id: "a-\(ticket.id)", in: zoomNamespace)
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .global)
+        } action: { frame in
+            // The mount's place on the page — where the lift lands.
+            lift?.homes["a-\(ticket.id)"] = frame
+        }
         .onTapGesture {
             Haptic.play(.tick)
             onOpen(ticket)
