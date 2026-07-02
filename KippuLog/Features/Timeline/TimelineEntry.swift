@@ -12,10 +12,8 @@ struct TimelineEntry: View {
     let ticket: Ticket
     var number = 0
     var alignment: HorizontalAlignment = .leading
-    var highlighted = false
     var onOpen: () -> Void = {}
 
-    @State private var sweep: Double = -0.25
     @State private var pinchScale: CGFloat = 1
     @State private var pinchFired = false
 
@@ -26,7 +24,6 @@ struct TimelineEntry: View {
                 .padding(.bottom, 10)
 
             TicketCard(ticket: ticket)
-                .lightSweep(progress: sweep)
                 .frame(maxWidth: plateWidth)
                 .onGeometryChange(for: CGRect.self) { proxy in
                     proxy.frame(in: .global)
@@ -44,13 +41,6 @@ struct TimelineEntry: View {
                             perspective: 0.4
                         )
                         .opacity(phase.isIdentity ? 1 : 0.65)
-                }
-                .onChange(of: highlighted) { _, isOn in
-                    guard isOn else { return }
-                    sweep = -0.25
-                    withAnimation(.easeInOut(duration: 1.1)) {
-                        sweep = 1.25
-                    }
                 }
                 .padding(.bottom, 16)
 

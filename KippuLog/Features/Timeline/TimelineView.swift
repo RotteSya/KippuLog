@@ -13,7 +13,6 @@ struct TimelineView: View {
     @State private var pinchLive: CGFloat = 1
     @State private var albumPinchLive: CGFloat = 1
     @State private var jumpTargetID: UUID?
-    @State private var highlightID: UUID?
     @State private var droppedImage: UIImage?
     @State private var arrived = false
     /// One-shot pop when the welcome specimen dives into the button.
@@ -319,18 +318,13 @@ struct TimelineView: View {
                 }
             }
             .onChange(of: store.lastAddedID) { _, new in
-                // A fresh ticket just punched in. The shelf jumps to its
-                // slot while the capture cover still hides the page — the
-                // lift needs a stable slot to land on — then the studio
-                // light sweeps the plate as it settles.
+                // A fresh ticket just punched in — the shelf jumps to its
+                // slot while the capture cover still hides the page, so the
+                // lift has a stable slot to land on.
                 guard let new else { return }
                 Task {
                     try? await Task.sleep(for: .milliseconds(60))
                     proxy.scrollTo(new, anchor: .center)
-                    try? await Task.sleep(for: .milliseconds(780))
-                    highlightID = new
-                    try? await Task.sleep(for: .milliseconds(1400))
-                    highlightID = nil
                 }
             }
         }
@@ -384,7 +378,6 @@ struct TimelineView: View {
                     ticket: ticket,
                     number: numbers[ticket.id] ?? 0,
                     alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
-                    highlighted: highlightID == ticket.id,
                     onOpen: {
                         openStage(ticket, slotKey: "t-\(ticket.id)")
                     }
