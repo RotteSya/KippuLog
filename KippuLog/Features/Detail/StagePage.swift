@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// One ticket under the lamp: the real photographed ticket settles as you
-/// arrive, tilts in your hand (gloss answering), and casts a faint
-/// reflection on the table. Facts ride on a torn stub below.
+/// One ticket under the lamp: the real photographed ticket sits lit and
+/// still, its paper stock and cut edges catching the studio light — the
+/// lift's flights carry the motion, the exhibit itself is calm. Facts
+/// ride on a torn stub below.
 struct StagePage: View {
     @Environment(TicketStore.self) private var store
     let ticketID: UUID
@@ -10,11 +11,7 @@ struct StagePage: View {
     /// Departure: facts dissolve while the ticket holds the light.
     var departing = false
 
-    @State private var tilt: CGSize = .zero
-    // The lift seats the hero before this page is ever seen.
-    @State private var settled = true
     @State private var arrivalSweep: Double = -0.25
-    @State private var showInspector = false
     @State private var memoDraft = ""
     @FocusState private var memoFocused: Bool
 
@@ -29,14 +26,9 @@ struct StagePage: View {
     private func content(_ ticket: Ticket) -> some View {
         ScrollView {
             VStack(spacing: 0) {
-                ZStack(alignment: .bottom) {
-                    // Table reflection — fades as the ticket lifts.
-                    reflection(ticket)
-                        .offset(y: reflectionOffset(ticket))
-                    hero(ticket)
-                }
-                .padding(.top, 64)
-                .padding(.bottom, 52)
+                hero(ticket)
+                    .padding(.top, 64)
+                    .padding(.bottom, 52)
 
                 Group {
                     Text(ticket.routeText)
@@ -88,11 +80,6 @@ struct StagePage: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
-        .fullScreenCover(isPresented: $showInspector) {
-            if let photo = store.photo(for: ticket) {
-                PhotoInspector(photo: photo)
-            }
-        }
     }
 
     // MARK: Hero
@@ -109,104 +96,32 @@ struct StagePage: View {
             lying: false
         )
         .frame(maxWidth: heroWidth(ticket))
-        .visualEffect { [tilt] content, proxy in
+        // One soft gloss at rest — the same sheen the ticket wears as it
+        // flies in on the lift, so the seated hero and the flight match.
+        .visualEffect { content, proxy in
             content.colorEffect(
                 ShaderLibrary.holoSheen(
                     .float2(proxy.size),
-                    .float2(Float(tilt.width), Float(tilt.height)),
-                    .float(Float(min(1, hypot(tilt.width, tilt.height) * 1.8 + 0.12)))
+                    .float2(0, 0),
+                    .float(0.12)
                 )
             )
         }
     }
 
+    /// The exhibit under glass — lit, grounded, and still. The lift's
+    /// open/close flights carry all the drama; the seated ticket is calm,
+    /// its paper stock and cut edges doing the work (no drag, no mirror).
     private func hero(_ ticket: Ticket) -> some View {
         heroCard(ticket)
             .lightSweep(progress: arrivalSweep)
-            .rotation3DEffect(.degrees(Double(-tilt.height) * 13), axis: (x: 1, y: 0, z: 0), perspective: 0.5)
-            .rotation3DEffect(.degrees(Double(tilt.width) * 15), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
-            .shadow(
-                color: .black.opacity(0.50),
-                radius: 22 + hypot(tilt.width, tilt.height) * 12,
-                x: -tilt.width * 16,
-                y: 16 + tilt.height * 10
-            )
+            .shadow(color: .black.opacity(0.50), radius: 24, y: 18)
             .shredFall(progress: shredProgress, seed: ticket.styleSeed)
-            .scaleEffect(settled ? 1 : 0.955)
-            .opacity(settled ? 1 : 0)
-            .simultaneousGesture(tiltGesture)
-            .onTapGesture {
-                guard store.photo(for: ticket) != nil else { return }
-                Haptic.play(.tick)
-                showInspector = true
-            }
             .padding(.horizontal, 24)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("切符 \(ticket.routeText)。タップで原寸表示")
+            .accessibilityLabel("切符 \(ticket.routeText)")
             .accessibilityIdentifier("stage-hero")
     }
-
-    // MARK: Reflection
-
-    private func reflection(_ ticket: Ticket) -> some View {
-        let mag = min(1, hypot(tilt.width, tilt.height) * 1.4)
-        // Mirror physics: strongest at the card's foot, foreshortened the
-        // way a table view compresses a reflection, dissolved well before
-        // it could ghost the text below — a sheen, never a band.
-        return heroCard(ticket)
-            .scaleEffect(x: 1, y: -0.62)
-            .blur(radius: 4.5)
-            .opacity(settled ? (0.10 - 0.06 * mag) * (1 - min(1, shredProgress * 2.6)) : 0)
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .white, location: 0),
-                        .init(color: .white.opacity(0.5), location: 0.10),
-                        .init(color: .white.opacity(0.16), location: 0.22),
-                        .init(color: .clear, location: 0.36),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .opacity(departing ? 0 : 1)
-            .animation(.easeOut(duration: 0.16), value: departing)
-            .offset(x: -tilt.width * 6)
-            .allowsHitTesting(false)
-    }
-
-    private func reflectionOffset(_ ticket: Ticket) -> CGFloat {
-        let width = heroWidth(ticket)
-        let aspect: CGFloat
-        if let cutout = store.cutout(for: ticket), cutout.size.height > 0 {
-            aspect = cutout.size.width / cutout.size.height
-        } else if store.photo(for: ticket) != nil, let raw = ticket.photoAspect {
-            aspect = raw
-        } else {
-            aspect = TicketArtView.aspect(for: ticket.kind)
-        }
-        // Foreshortened to 0.62 about the centre — the empty 0.19h above
-        // the compressed render comes off the travel, so the sheen still
-        // starts right at the card's foot.
-        return width / aspect * 0.81 + 10
-    }
-
-    // MARK: Gestures
-
-    private var tiltGesture: some Gesture {
-        DragGesture(minimumDistance: 2)
-            .onChanged { value in
-                let w = (value.translation.width / 220).clamped(to: -1...1)
-                let h = (value.translation.height / 220).clamped(to: -1...1)
-                tilt = CGSize(width: w, height: h)
-            }
-            .onEnded { _ in
-                withAnimation(.spring(response: 0.55, dampingFraction: 0.42)) {
-                    tilt = .zero
-                }
-            }
-    }
-
 
     // MARK: Memo
 

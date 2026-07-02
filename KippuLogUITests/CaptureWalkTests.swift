@@ -69,21 +69,13 @@ final class CaptureWalkTests: XCTestCase {
         sleep(2)
         shot(app, "22-timeline-with-new")
 
-        // Open its stage — the hero is the real photo.
+        // Open its stage — the hero is the real photo, sitting still
+        // under the lamp (no tap-to-zoom, no drag-reflection gimmick).
         entry.tap()
         let hero = app.otherElements["stage-hero"].firstMatch
         XCTAssertTrue(hero.waitForExistence(timeout: 6))
         sleep(2)
         shot(app, "23-stage-photo-hero")
-
-        // Tap the photo → full-screen zoomable inspector.
-        hero.tap()
-        let closeButton = app.buttons["inspector-close"].firstMatch
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 6))
-        sleep(1)
-        shot(app, "24-photo-inspector")
-        closeButton.tap()
-        XCTAssertTrue(hero.waitForExistence(timeout: 6))
     }
 
     /// The angled-on-clutter fixture: flatten (or subject lift) must hand

@@ -72,7 +72,6 @@ struct StubCard: View {
 
     private var factPairs: [(String, String)] {
         var pairs: [(String, String)] = [
-            ("種別", ticket.kind.label),
             ("会社", ticket.brand.displayName),
         ]
         if let train = ticket.trainName { pairs.append(("列車", train)) }
