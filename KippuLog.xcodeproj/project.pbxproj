@@ -29,9 +29,22 @@
 		1A0000000000000000000023 /* KippuLogUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KippuLogUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1A0000000000000000000014 /* Exceptions for "KippuLog" folder in "KippuLog" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1A0000000000000000000031 /* KippuLog */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1A0000000000000000000011 /* KippuLog */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1A0000000000000000000014 /* Exceptions for "KippuLog" folder in "KippuLog" target */,
+			);
 			path = KippuLog;
 			sourceTree = "<group>";
 		};
@@ -408,13 +421,13 @@
 				DEVELOPMENT_TEAM = TZ2T95MG29;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KippuLog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "きっぷログ";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "切符を撮影してコレクションに追加します。";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "作成した切符カードを写真に保存します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -439,13 +452,13 @@
 				DEVELOPMENT_TEAM = TZ2T95MG29;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KippuLog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "きっぷログ";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "切符を撮影してコレクションに追加します。";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "作成した切符カードを写真に保存します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

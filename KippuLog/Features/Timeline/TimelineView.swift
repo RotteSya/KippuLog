@@ -16,6 +16,8 @@ struct TimelineView: View {
     @State private var highlightID: UUID?
     @State private var droppedImage: UIImage?
     @State private var arrived = false
+    /// One-shot pop when the welcome specimen dives into the button.
+    @State private var punchPop = false
 
     var body: some View {
         NavigationStack {
@@ -58,6 +60,19 @@ struct TimelineView: View {
                 showCapture = true
                 return true
             }
+            .overlay {
+                // The page runs out into paper before it can touch the
+                // clock above or the punch below.
+                VStack(spacing: 0) {
+                    PaperFade(side: .top, height: 92)
+                    Spacer(minLength: 0)
+                    if !showAlbum, !store.tickets.isEmpty {
+                        PaperFade(side: .bottom, height: 132)
+                    }
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+            }
             .background(Ink.background)
             .toolbarVisibility(.hidden, for: .navigationBar)
             .navigationDestination(item: $selectedTicket) { ticket in
@@ -79,6 +94,7 @@ struct TimelineView: View {
                 PunchButton {
                     showCapture = true
                 }
+                .scaleEffect(punchPop ? 1.16 : 1)
                 .padding(.bottom, 14)
                 .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
@@ -86,6 +102,21 @@ struct TimelineView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
         .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
             CaptureFlowView(initialImage: droppedImage)
+        }
+        .onChange(of: store.welcomeFollowUp) { _, followUp in
+            // The welcome's specimen just dove into the punch button — the
+            // button answers with one pop, then (if asked) opens the gate.
+            guard let followUp else { return }
+            store.welcomeFollowUp = nil
+            Task {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.5)) { punchPop = true }
+                try? await Task.sleep(for: .milliseconds(240))
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.62)) { punchPop = false }
+                if followUp == .capture {
+                    try? await Task.sleep(for: .milliseconds(280))
+                    showCapture = true
+                }
+            }
         }
         .task {
             #if DEBUG
@@ -222,35 +253,7 @@ struct TimelineView: View {
     // MARK: Masthead
 
     private var masthead: some View {
-        VStack(spacing: 0) {
-            // Character-spaced wordmark — truly centered, no tracking tail.
-            HStack(spacing: 9) {
-                ForEach(Array("きっぷログ".enumerated()), id: \.offset) { _, char in
-                    Text(String(char))
-                        .font(Typo.mincho(22))
-                }
-            }
-            .foregroundStyle(Ink.text)
-            .accessibilityRepresentation { Text("きっぷログ") }
-            .overlay(alignment: .trailing) {
-                HankoSeal(size: 16)
-                    .offset(x: 34, y: -2)
-            }
-            .padding(.bottom, 16)
-
-            // Classic thick-thin editorial rule.
-            VStack(spacing: 3) {
-                Rectangle().fill(Ink.text.opacity(0.85)).frame(height: 1.4)
-                Rectangle().fill(Ink.rule).frame(height: 0.6)
-            }
-            .padding(.bottom, 12)
-
-            Text("COLLECTED JOURNEYS")
-                .font(Typo.caption(9.5))
-                .tracking(3.6)
-                .foregroundStyle(Ink.textFaint)
-        }
-        .padding(.horizontal, 30)
+        MagazineMasthead()
     }
 
     // MARK: Sections

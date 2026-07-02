@@ -14,7 +14,16 @@ struct RootView: View {
         case .viewfinder:
             ViewfinderRehearsalView()
         case nil:
-            TimelineView()
+            ZStack {
+                TimelineView()
+                if store.needsWelcome {
+                    // 開幕 — plays once; its exit lifts the lights on the
+                    // page already living underneath.
+                    WelcomeCeremony()
+                        .zIndex(1)
+                        .transition(.opacity)
+                }
+            }
         }
     }
 }

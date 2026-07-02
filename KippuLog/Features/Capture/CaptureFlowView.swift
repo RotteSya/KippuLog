@@ -36,7 +36,13 @@ struct CaptureFlowView: View {
 
     var body: some View {
         ZStack {
-            StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.42), radius: 0.95, warmth: 0.35)
+            // One room. The lamp swings and warms continuously as the
+            // ceremony moves — never two backdrops crossfading.
+            StudioBackdrop(
+                center: roomLight.center,
+                radius: roomLight.radius,
+                warmth: roomLight.warmth
+            )
 
             switch phase {
             case .gathering:
@@ -51,9 +57,10 @@ struct CaptureFlowView: View {
                 }
             case .confirm:
                 if let scan {
-                    // Plain crossfade: the gate parks the ticket exactly
-                    // where the reveal shows it, so the handoff must not
-                    // slide — the desk below does its own rising.
+                    // The gate parked the scan on the exact frame the
+                    // reveal occupies (`ConfirmStage`), so the confirm
+                    // arrives *already there* — only the gate's chrome
+                    // fades over identical pixels. No dip, no jump.
                     ConfirmTicketView(
                         scan: scan,
                         cutout: cutout,
@@ -62,7 +69,7 @@ struct CaptureFlowView: View {
                         onRetake: retake,
                         onAdjust: original == nil ? nil : { showQuadEditor = true }
                     )
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .identity, removal: .opacity))
                 }
             }
 
@@ -135,6 +142,15 @@ struct CaptureFlowView: View {
         case .gathering: 0
         case .gate: 1
         case .confirm: 2
+        }
+    }
+
+    /// The lamp per scene — animated through `StudioBackdrop.animatableData`.
+    private var roomLight: (center: UnitPoint, radius: CGFloat, warmth: CGFloat) {
+        switch phase {
+        case .gathering: (UnitPoint(x: 0.5, y: 0.42), 0.95, 0.35)
+        case .gate: (UnitPoint(x: 0.5, y: 0.50), 0.95, 0.40)
+        case .confirm: (UnitPoint(x: 0.5, y: 0.20), 0.80, 0.50)
         }
     }
 

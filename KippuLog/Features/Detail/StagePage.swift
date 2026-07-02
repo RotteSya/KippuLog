@@ -136,6 +136,8 @@ struct StagePage: View {
 
     private func reflection(_ ticket: Ticket) -> some View {
         let mag = min(1, hypot(tilt.width, tilt.height) * 1.4)
+        // Mirror physics: strongest at the card's foot, dissolved into the
+        // table well before it could ghost the text below.
         return heroCard(ticket)
             .scaleEffect(x: 1, y: -1)
             .blur(radius: 3.5)
@@ -143,11 +145,13 @@ struct StagePage: View {
             .mask {
                 LinearGradient(
                     stops: [
-                        .init(color: .white, location: 0.62),
-                        .init(color: .clear, location: 0.97),
+                        .init(color: .white, location: 0),
+                        .init(color: .white.opacity(0.55), location: 0.12),
+                        .init(color: .white.opacity(0.22), location: 0.26),
+                        .init(color: .clear, location: 0.44),
                     ],
-                    startPoint: .bottom,
-                    endPoint: .top
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
             }
             .offset(x: -tilt.width * 6)

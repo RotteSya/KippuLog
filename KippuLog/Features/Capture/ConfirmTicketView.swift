@@ -19,14 +19,20 @@ struct ConfirmTicketView: View {
     @State private var deskRaised = false
     @State private var keyboardUp = false
 
-    var body: some View {
-        ZStack {
-            StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.20), radius: 0.8, warmth: 0.5)
+    /// The scan's true proportions, softly clamped like the gate's.
+    private var scanAspect: CGFloat {
+        let raw = scan.size.height > 0 ? scan.size.width / scan.size.height : MarsTicketFace.aspect
+        return min(max(raw, 1.10), 3.20)
+    }
 
+    var body: some View {
+        GeometryReader { proxy in
             VStack(spacing: 0) {
                 if !keyboardUp {
                     reveal
-                        .padding(.top, 38)
+                        .frame(height: ConfirmStage.fitted(aspect: scanAspect, in: proxy.size).height)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, ConfirmStage.topPadding)
                         .padding(.bottom, 26)
                         .transition(
                             .scale(scale: 0.8, anchor: .top)
@@ -38,6 +44,7 @@ struct ConfirmTicketView: View {
                     .offset(y: deskRaised ? 0 : 640)   // fully below the frame until it rises
                     .padding(.top, keyboardUp ? 10 : 0)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .task { await choreograph() }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -64,7 +71,7 @@ struct ConfirmTicketView: View {
             Image(uiImage: scan)
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: 300, maxHeight: 230)
+                .frame(maxWidth: ConfirmStage.maxWidth, maxHeight: ConfirmStage.maxHeight)
                 .clipShape(
                     PunchedTicketShape(
                         corner: 6,
@@ -87,7 +94,6 @@ struct ConfirmTicketView: View {
                 .scaleEffect(lifted ? 1 : 0.92)
                 .animation(.spring(response: 0.45, dampingFraction: 0.82), value: draft.kind)
         }
-        .frame(maxHeight: 250)
         .padding(.horizontal, 30)
     }
 
@@ -176,8 +182,8 @@ struct ConfirmTicketView: View {
 
     private func choreograph() async {
         guard !lifted else { return }
-        // Let the gate's handoff crossfade settle before the lift.
-        try? await Task.sleep(for: .milliseconds(480))
+        // Let the gate's chrome finish fading before the lift.
+        try? await Task.sleep(for: .milliseconds(420))
         guard !Task.isCancelled else { return }
         Haptic.play(.stamp)
         withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {

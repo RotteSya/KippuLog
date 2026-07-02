@@ -1,11 +1,16 @@
 import SwiftUI
 
 /// The first page of an empty magazine — an invitation, not a void.
+/// It wears the same masthead as the filled magazine, so the welcome's
+/// lights-up lands on a real cover, not a bare room.
 struct EmptyStateView: View {
     @Environment(TicketStore.self) private var store
 
     var body: some View {
         VStack(spacing: 0) {
+            MagazineMasthead()
+                .padding(.top, 22)
+
             Spacer()
 
             BlankStock()

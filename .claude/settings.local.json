@@ -3,7 +3,9 @@
     "allow": [
       "Bash(xcodebuild -version)",
       "Bash(xcrun simctl *)",
-      "Bash(xcodebuild -showsdks)"
+      "Bash(xcodebuild -showsdks)",
+      "Skill(run)",
+      "Skill(run:*)"
     ]
   }
 }

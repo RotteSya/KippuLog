@@ -11,10 +11,18 @@ final class TicketStore {
     /// Transient: the ticket just punched in (drives the shelf highlight).
     private(set) var lastAddedID: UUID?
 
+    /// First run only — the opening ceremony hasn't played yet.
+    private(set) var needsWelcome = false
+    /// What the ceremony's exit asked the timeline to do.
+    enum WelcomeFollowUp { case settle, capture }
+    var welcomeFollowUp: WelcomeFollowUp?
+
     private let directory: URL
     private let photosDirectory: URL
     private let thumbsDirectory: URL
     private var fileURL: URL { directory.appendingPathComponent("tickets.json") }
+
+    private static let welcomedKey = "hasWelcomed"
 
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -29,11 +37,24 @@ final class TicketStore {
             try? FileManager.default.removeItem(at: fileURL)
             try? FileManager.default.removeItem(at: photosDirectory)
             try? FileManager.default.createDirectory(at: photosDirectory, withIntermediateDirectories: true)
+            // Walk tests start on the shelf; the ceremony is its own test.
+            UserDefaults.standard.set(true, forKey: Self.welcomedKey)
         }
         load()
         if arguments.contains("-uiTestSeedSamples"), tickets.isEmpty {
             addSamples()
         }
+        if arguments.contains("-uiTestWelcome") {
+            UserDefaults.standard.removeObject(forKey: Self.welcomedKey)
+        }
+        needsWelcome = !UserDefaults.standard.bool(forKey: Self.welcomedKey)
+    }
+
+    /// The opening ceremony finished (or was skipped).
+    func completeWelcome(followUp: WelcomeFollowUp) {
+        UserDefaults.standard.set(true, forKey: Self.welcomedKey)
+        needsWelcome = false
+        welcomeFollowUp = followUp
     }
 
     // MARK: Mutations

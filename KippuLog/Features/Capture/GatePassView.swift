@@ -25,10 +25,12 @@ struct GatePassView: View {
     @State private var showCaption = false
     @State private var slotFlash = false
 
-    /// The scan's own proportions — never force MARS onto an Edmondson.
+    /// The scan's own proportions — never force MARS onto an Edmondson,
+    /// and never crop a long 私鉄 ticket's ends. Soft-clamped only against
+    /// pathological mis-scans.
     private var aspect: CGFloat {
         let raw = scan.size.height > 0 ? scan.size.width / scan.size.height : MarsTicketFace.aspect
-        return min(max(raw, 1.30), 2.40)
+        return min(max(raw, 1.10), 3.20)
     }
 
     var body: some View {
@@ -37,8 +39,6 @@ struct GatePassView: View {
             let ticketWidth = size.width * 0.64
 
             ZStack {
-                StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.5), radius: 0.95, warmth: 0.4)
-
                 // Ticket travelling through.
                 ticketBody(width: ticketWidth)
                     .scaleEffect(scale)
@@ -112,7 +112,9 @@ struct GatePassView: View {
                     )
                 )
             }
-            .shadow(color: .black.opacity(0.5), radius: 18, y: 12)
+            // Matches the confirm reveal's shadow exactly — the handoff
+            // must not re-light the object.
+            .shadow(color: .black.opacity(0.45), radius: 16, y: 10)
     }
 
     private func chadX(ticketWidth: CGFloat) -> CGFloat {
@@ -252,19 +254,19 @@ struct GatePassView: View {
             ticketOffset = park.offsetUnit
             scale = park.scale
         }
-        try? await Task.sleep(for: .milliseconds(430))
+        // Let the spring settle completely — the confirm arrives under
+        // these exact pixels, so the glide must be *finished*.
+        try? await Task.sleep(for: .milliseconds(580))
         guard !Task.isCancelled else { return }
 
         onFinished()
     }
 
-    /// Where ConfirmTicketView's reveal will show this very scan: a
-    /// ≤250pt stage under 38pt of top padding (the stage shrinks on
-    /// shorter phones exactly like the VStack negotiation over there).
+    /// Where ConfirmTicketView's reveal will show this very scan —
+    /// `ConfirmStage` is the single source of that geometry.
     private func parkTarget(size: CGSize, ticketWidth: CGFloat) -> (offsetUnit: CGFloat, scale: CGFloat) {
-        let stageHeight = min(250, size.height / 2 - 64)
-        let targetCenterY = 38 + stageHeight / 2
-        let targetWidth = min(size.width - 60, 300)
+        let targetCenterY = ConfirmStage.centerY(aspect: aspect, in: size)
+        let targetWidth = ConfirmStage.fitted(aspect: aspect, in: size).width
         return (
             offsetUnit: (targetCenterY - size.height / 2) / size.height,
             scale: targetWidth / ticketWidth
