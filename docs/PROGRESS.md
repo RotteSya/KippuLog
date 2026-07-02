@@ -2,6 +2,37 @@
 
 Running build log. Newest first.
 
+## 2026-07-03 — 持ち上げ: one engine, three flights; the collector's stock
+
+The navigation stack left the reading flow. `LiftEngine` (a
+CADisplayLink spring publishing raw per-frame values — SwiftUI only
+prints them) owns every journey as one continuous shot:
+
+- [x] OPEN — tap a card: it peels off the page top-edge-first (−7°
+      settling flat), the room dims around it as it rises into the
+      lamp, the stage mounts the frame it seats on identical pixels,
+      chrome and captions follow a breath later.
+- [x] CLOSE — facts dissolve, the lamp lets go, the lone ticket lays
+      itself back down onto its printed place (album mounts land at
+      their seeded tilt).
+- [x] SAVE — the desk withdraws, the capture room lets go, and the
+      fresh ticket sails down into the slot the page had already
+      turned to beneath the cover; the studio light sweeps it in.
+- [x] Flights chase their slot LIVE each tick (fresh rows settle
+      under a flight — the ticket lands where the slot ends up, not
+      where it stood at take-off). Settle detector + 1.4s hard
+      ceiling; NSObject-backed for the display-link selector.
+      Probes: -uiTestProbeReturn / -uiTestProbeSave.
+- [x] The collector's stock (`ticketPaper` material/age): coated MARS
+      reels (tight tooth, faint calender lines), edmondson card
+      (heavy fibre, guillotined edge), private-rail pulp (warm cast,
+      tea-and-rust recycled flecks) — and age from travelDate: the
+      print fades a step, edges yellow inward, corners soften. All
+      deterministic per ticket; stubs/kraft/blanks stay plain.
+- [x] holoSheen grew a cut-edge rim: paper thickness catches the lamp
+      on whichever side the hand raises — no caller changes.
+- [x] Full suite green; open/close/save dissected frame-by-frame.
+
 ## 2026-07-02 (night) — the rail, the slip, and the sinking ticket
 
 Answering "generic motion, awkward layout": the last system-feeling

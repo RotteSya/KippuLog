@@ -19,6 +19,31 @@ struct TicketArtView: View {
     }
 }
 
+// MARK: - The collector's stock
+
+nonisolated extension Ticket {
+    /// The stock this ticket was printed on, for the paper shader:
+    /// 0 coated MARS reel ・ 1 edmondson card ・ 2 private-rail pulp.
+    var paperMaterial: Float {
+        if kind.isEdmondson { return 1 }
+        switch brand {
+        case .jrEast, .jrCentral, .jrWest, .jrHokkaido, .jrKyushu, .jrShikoku, .other:
+            return 0
+        default:
+            return 2
+        }
+    }
+
+    /// Years in the shoebox, 0…1 across ~2.5 years — bucketed by month so
+    /// the patina never shifts under the reader's eyes.
+    var paperAge: Float {
+        guard let travelDate else { return 0 }
+        let months = Calendar(identifier: .gregorian)
+            .dateComponents([.month], from: travelDate, to: .now).month ?? 0
+        return min(1, Float(max(0, months)) / 30)
+    }
+}
+
 /// Studio presentation applied identically to every object in the
 /// collection — the real photo *and* the rendered fallback plate — so the
 /// whole magazine reads as one shoot under one lamp: paired key light and a

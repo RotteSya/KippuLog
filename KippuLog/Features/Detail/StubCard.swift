@@ -54,6 +54,8 @@ struct StubCard: View {
                             .float2(geo.size),
                             .color(Color.clear),
                             .float(Float((seed &+ 7) % 9973)),
+                            .float(0),
+                            .float(3),
                             .float(0)
                         )
                     )

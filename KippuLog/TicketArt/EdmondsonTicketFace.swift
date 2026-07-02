@@ -88,13 +88,15 @@ struct EdmondsonTicketFace: View {
     private var paper: some View {
         Rectangle()
             .fill(Ink.edmondsonBuff)
-            .visualEffect { [seed = ticket.styleSeed] content, geo in
+            .visualEffect { [seed = ticket.styleSeed, age = ticket.paperAge] content, geo in
                 content.colorEffect(
                     ShaderLibrary.ticketPaper(
                         .float2(geo.size),
                         .color(Color.clear),
                         .float(Float(seed % 9973)),
-                        .float(1)
+                        .float(1),
+                        .float(1),
+                        .float(age)
                     )
                 )
             }

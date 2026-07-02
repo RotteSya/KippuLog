@@ -83,13 +83,15 @@ struct MarsTicketFace: View {
         let tint = Color(hex: ticket.brand.patternHex)
         return Rectangle()
             .fill(base)
-            .visualEffect { [seed = ticket.styleSeed] content, geo in
+            .visualEffect { [seed = ticket.styleSeed, material = ticket.paperMaterial, age = ticket.paperAge] content, geo in
                 content.colorEffect(
                     ShaderLibrary.ticketPaper(
                         .float2(geo.size),
                         .color(tint.opacity(0.13)),
                         .float(Float(seed % 9973)),
-                        .float(0)
+                        .float(0),
+                        .float(material),
+                        .float(age)
                     )
                 )
             }

@@ -219,6 +219,19 @@ final class LiftEngine: NSObject {
         }
     }
 
+    /// The peel — opening, the card lifts off the page top-edge-first,
+    /// flattening as it seats; closing, it lays itself back down.
+    var ticketPeel: Double {
+        guard let flight else { return 0 }
+        let p = min(max(progress, 0), 1)
+        switch flight.kind {
+        case .open:
+            return (1 - Ease.outCubic(p)) * -7.0
+        case .close, .save:
+            return Ease.inCubic(p) * -5.0
+        }
+    }
+
     var ticketShadowOpacity: Double {
         guard let flight else { return 0 }
         let lifted: Double = 0.45, resting: Double = 0.16
@@ -299,6 +312,11 @@ struct LiftOverlay: View {
                     }
                     .frame(width: rect.width, height: rect.height)
                     .rotationEffect(.degrees(engine.ticketRotation))
+                    .rotation3DEffect(
+                        .degrees(engine.ticketPeel),
+                        axis: (x: 1, y: 0, z: 0),
+                        perspective: 0.45
+                    )
                     .shadow(
                         color: .black.opacity(engine.ticketShadowOpacity),
                         radius: engine.ticketShadowRadius,

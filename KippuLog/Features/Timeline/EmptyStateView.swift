@@ -66,6 +66,8 @@ private struct BlankStock: View {
                         .float2(geo.size),
                         .color(Color(hex: 0x9AA89E).opacity(0.13)),
                         .float(412),
+                        .float(0),
+                        .float(0),
                         .float(0)
                     )
                 )
