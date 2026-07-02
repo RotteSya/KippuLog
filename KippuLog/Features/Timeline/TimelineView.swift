@@ -18,6 +18,8 @@ struct TimelineView: View {
     @State private var arrived = false
     /// One-shot pop when the welcome specimen dives into the button.
     @State private var punchPop = false
+    /// The colophon page — the magazine's few settings live there.
+    @State private var showOkuzuke = false
 
     var body: some View {
         NavigationStack {
@@ -37,6 +39,14 @@ struct TimelineView: View {
         .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
             CaptureFlowView(initialImage: droppedImage)
                 .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $showOkuzuke) {
+            OkuzukeView(onReplayWelcome: {
+                Task {
+                    try? await Task.sleep(for: .milliseconds(420))
+                    store.replayWelcome()
+                }
+            })
         }
         .onChange(of: store.welcomeFollowUp) { _, followUp in
             // The welcome's specimen just dove into the punch button — the
@@ -86,7 +96,14 @@ struct TimelineView: View {
                             zoomSourceKey = "a-\(ticket.id)"
                             selectedTicket = ticket
                         },
-                        onJumpMonth: jumpToMonth
+                        onJumpMonth: jumpToMonth,
+                        onCloseAlbum: {
+                            Haptic.play(.page)
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+                                showAlbum = false
+                            }
+                        },
+                        onOkuzuke: { showOkuzuke = true }
                     )
                     .scaleEffect(albumPinchLive)
                     .simultaneousGesture(albumPinchOpen)
@@ -94,7 +111,7 @@ struct TimelineView: View {
                 } else {
                     Group {
                         if store.tickets.isEmpty {
-                            EmptyStateView()
+                            EmptyStateView(onOkuzuke: { showOkuzuke = true })
                         } else {
                             magazine
                         }
@@ -292,7 +309,15 @@ struct TimelineView: View {
     // MARK: Masthead
 
     private var masthead: some View {
-        MagazineMasthead()
+        MagazineMasthead(
+            onAlbum: {
+                Haptic.play(.page)
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+                    showAlbum = true
+                }
+            },
+            onOkuzuke: { showOkuzuke = true }
+        )
     }
 
     // MARK: Sections

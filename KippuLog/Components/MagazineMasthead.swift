@@ -5,8 +5,15 @@ import SwiftUI
 /// filled magazine and its empty first issue alike.
 ///
 /// The seal *stamps* in once per launch — the editor signing the issue —
-/// then stays pressed for the session.
+/// then stays pressed for the session. The cover's corners carry the
+/// magazine's two quiet doors: 収蔵帳 on the left, 奥付 on the right,
+/// set like the small print on a real cover.
 struct MagazineMasthead: View {
+    /// Opens the 収蔵帳 (hidden when there is nothing collected yet).
+    var onAlbum: (() -> Void)?
+    /// Opens the 奥付 page.
+    var onOkuzuke: (() -> Void)?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var stamped = SealSession.done
     @State private var bloom = false
@@ -49,6 +56,18 @@ struct MagazineMasthead: View {
                 .foregroundStyle(Ink.textFaint)
         }
         .padding(.horizontal, 30)
+        .overlay(alignment: .topLeading) {
+            if let onAlbum {
+                coverDoor("収蔵帳", identifier: "masthead-album", action: onAlbum)
+                    .padding(.leading, 24)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if let onOkuzuke {
+                coverDoor("奥付", identifier: "masthead-okuzuke", action: onOkuzuke)
+                    .padding(.trailing, 24)
+            }
+        }
         .onAppear {
             guard !stamped else { return }
             SealSession.done = true
@@ -67,6 +86,29 @@ struct MagazineMasthead: View {
                 }
             }
         }
+    }
+
+    /// A cover door: small print at the cover's corner, in the same
+    /// hairline box the tickets use for their operator marks.
+    private func coverDoor(_ label: String, identifier: String, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptic.play(.tick)
+            action()
+        } label: {
+            Text(label)
+                .font(Typo.gothic(10, bold: true))
+                .tracking(1.5)
+                .foregroundStyle(Ink.textSoft)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 2)
+                        .strokeBorder(Ink.rule, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 }
 

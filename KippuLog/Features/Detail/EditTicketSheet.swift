@@ -59,6 +59,7 @@ struct EditTicketSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
+        .appearanceOverridden()
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
                 keyboardUp = true

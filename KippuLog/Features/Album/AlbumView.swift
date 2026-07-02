@@ -12,6 +12,9 @@ struct AlbumView: View {
     var selection: Ticket?
     var onOpen: (Ticket) -> Void
     var onJumpMonth: (DateComponents) -> Void
+    /// The album's two quiet doors: back to the 誌面, and the 奥付.
+    var onCloseAlbum: () -> Void = {}
+    var onOkuzuke: () -> Void = {}
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -66,6 +69,37 @@ struct AlbumView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("収蔵帳")
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .topLeading) {
+            albumDoor("誌面", identifier: "album-magazine", action: onCloseAlbum)
+                .padding(.leading, 24)
+        }
+        .overlay(alignment: .topTrailing) {
+            albumDoor("奥付", identifier: "album-okuzuke", action: onOkuzuke)
+                .padding(.trailing, 24)
+        }
+    }
+
+    /// Corner door, same small print as the magazine cover's.
+    private func albumDoor(_ label: String, identifier: String, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptic.play(.tick)
+            action()
+        } label: {
+            Text(label)
+                .font(Typo.gothic(10, bold: true))
+                .tracking(1.5)
+                .foregroundStyle(Ink.textSoft)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 2)
+                        .strokeBorder(Ink.rule, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 }
 

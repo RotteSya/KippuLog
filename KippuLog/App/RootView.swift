@@ -2,8 +2,15 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(TicketStore.self) private var store
+    @AppStorage("appearanceOverride") private var appearanceOverride = AppearanceOverride.system.rawValue
 
     var body: some View {
+        content
+            .preferredColorScheme(AppearanceOverride(rawValue: appearanceOverride)?.colorScheme)
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch DevRoute.current {
         case .gallery:
             ArtGalleryView()

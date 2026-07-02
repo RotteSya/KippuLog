@@ -5,10 +5,12 @@ import SwiftUI
 /// lights-up lands on a real cover, not a bare room.
 struct EmptyStateView: View {
     @Environment(TicketStore.self) private var store
+    /// The colophon door — the only cover corner an empty issue needs.
+    var onOkuzuke: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
-            MagazineMasthead()
+            MagazineMasthead(onOkuzuke: onOkuzuke)
                 .padding(.top, 22)
 
             Spacer()

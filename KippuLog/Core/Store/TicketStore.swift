@@ -97,6 +97,22 @@ final class TicketStore {
         sortAndSave()
     }
 
+    /// The specimen journeys are on the shelf.
+    var hasSamples: Bool {
+        tickets.contains { $0.isSample }
+    }
+
+    /// 見本を片付ける — the sample journeys leave; the user's own remain.
+    func removeSamples() {
+        tickets.removeAll { $0.isSample }
+        save()
+    }
+
+    /// 開幕をもう一度 — replay the opening ceremony once, on request.
+    func replayWelcome() {
+        needsWelcome = true
+    }
+
     // MARK: Photos
 
     private let imageCache = NSCache<NSString, UIImage>()
