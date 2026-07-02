@@ -31,6 +31,9 @@ struct CaptureFlowView: View {
     /// The captured frame, frozen over the live feed while flatten works.
     @State private var frozenStill: UIImage?
     @State private var hadLock = false
+    /// The room's dimmer. The cover presents with no system animation —
+    /// entering the gate is the page going dark, leaving is lights-up.
+    @State private var roomLit = false
 
     enum Phase { case gathering, gate, confirm }
 
@@ -80,6 +83,10 @@ struct CaptureFlowView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
         }
+        .opacity(roomLit ? 1 : 0)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.38)) { roomLit = true }
+        }
         .statusBarHidden(true)
         .fullScreenCover(isPresented: $showQuadEditor) {
             if let original {
@@ -94,7 +101,7 @@ struct CaptureFlowView: View {
         .overlay(alignment: .topTrailing) {
             if phase != .confirm {
                 Button {
-                    dismiss()
+                    close()
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .medium))
@@ -412,9 +419,25 @@ struct CaptureFlowView: View {
 
     // MARK: Outcomes
 
+    /// Lights up, then hand the window back with no system slide — leaving
+    /// the gate is the room brightening onto the page, not a card falling.
+    private func close(after work: (() -> Void)? = nil) {
+        camera.stop()
+        withAnimation(.easeOut(duration: 0.30)) { roomLit = false }
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            work?()
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { dismiss() }
+        }
+    }
+
     private func save() {
+        // Add first — the shelf beneath starts its walk-and-sweep to the
+        // fresh plate while the lights are still coming up.
         store.add(draft, photo: scan, cutout: cutout)
-        dismiss()
+        close()
     }
 
     private func retake() {

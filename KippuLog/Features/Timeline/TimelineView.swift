@@ -57,7 +57,7 @@ struct TimelineView: View {
                 guard let data = items.first, let image = UIImage(data: data) else { return false }
                 Haptic.play(.tick)
                 droppedImage = image
-                showCapture = true
+                openGate()
                 return true
             }
             .overlay {
@@ -92,7 +92,7 @@ struct TimelineView: View {
         .overlay(alignment: .bottom) {
             if selectedTicket == nil {
                 PunchButton {
-                    showCapture = true
+                    openGate()
                 }
                 .scaleEffect(punchPop ? 1.16 : 1)
                 .padding(.bottom, 14)
@@ -102,6 +102,7 @@ struct TimelineView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
         .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
             CaptureFlowView(initialImage: droppedImage)
+                .presentationBackground(.clear)
         }
         .onChange(of: store.welcomeFollowUp) { _, followUp in
             // The welcome's specimen just dove into the punch button — the
@@ -114,7 +115,7 @@ struct TimelineView: View {
                 withAnimation(.spring(response: 0.34, dampingFraction: 0.62)) { punchPop = false }
                 if followUp == .capture {
                     try? await Task.sleep(for: .milliseconds(280))
-                    showCapture = true
+                    openGate()
                 }
             }
         }
@@ -123,10 +124,18 @@ struct TimelineView: View {
             // `-uiTestImport` launches straight into the gate ceremony.
             if ProcessInfo.processInfo.arguments.contains("-uiTestImport"), !showCapture {
                 try? await Task.sleep(for: .milliseconds(700))
-                showCapture = true
+                openGate()
             }
             #endif
         }
+    }
+
+    /// Open the gate with no system slide — the capture room dims itself
+    /// over the page (its own entrance owns the moment).
+    private func openGate() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { showCapture = true }
     }
 
     // MARK: Album ↔ magazine bridge
