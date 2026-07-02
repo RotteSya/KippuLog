@@ -11,7 +11,6 @@ struct StagePage: View {
     /// Departure: facts dissolve while the ticket holds the light.
     var departing = false
 
-    @State private var arrivalSweep: Double = -0.25
     @State private var memoDraft = ""
     @FocusState private var memoFocused: Bool
 
@@ -74,10 +73,6 @@ struct StagePage: View {
         .scrollIndicators(.hidden)
         .onAppear {
             memoDraft = ticket.memo
-            // The lamp finds the ticket as it settles — one pass of light.
-            withAnimation(.easeInOut(duration: 1.0).delay(0.30)) {
-                arrivalSweep = 1.25
-            }
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -114,7 +109,6 @@ struct StagePage: View {
     /// its paper stock and cut edges doing the work (no drag, no mirror).
     private func hero(_ ticket: Ticket) -> some View {
         heroCard(ticket)
-            .lightSweep(progress: arrivalSweep)
             .shadow(color: .black.opacity(0.50), radius: 24, y: 18)
             .shredFall(progress: shredProgress, seed: ticket.styleSeed)
             .padding(.horizontal, 24)
