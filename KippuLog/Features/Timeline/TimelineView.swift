@@ -9,12 +9,17 @@ struct TimelineView: View {
     @State private var showCapture = false
     /// The lift — every page⇄stage journey is one of its flights.
     @State private var lift = LiftEngine()
-    @State private var showAlbum = ProcessInfo.processInfo.arguments.contains("-uiTestAlbum")
-    @State private var pinchLive: CGFloat = 1
-    @State private var albumPinchLive: CGFloat = 1
+    /// The fold — the one continuous sheet between the 誌面 and the
+    /// 収蔵帳; pinches scrub it, the corner doors drive it whole.
+    @State private var shelf = ShelfFold(
+        startInAlbum: ProcessInfo.processInfo.arguments.contains("-uiTestAlbum")
+    )
     @State private var jumpTargetID: UUID?
     @State private var droppedImage: UIImage?
-    @State private var arrived = false
+    /// The issue prints itself onto the launch screen's blank paper —
+    /// masthead first, then the entries, then the punch steps in.
+    @State private var arrivalT: CGFloat = 0
+    @State private var punchArrived = false
     /// One-shot pop when the welcome specimen dives into the button.
     @State private var punchPop = false
     /// The colophon page — the magazine's few settings live there.
@@ -51,7 +56,7 @@ struct TimelineView: View {
             // scoped HERE — an ambient `.animation(value:)` on the whole
             // subtree would smear cross-fades over every one of the
             // engine's hand-placed frames.
-            let pageSettled = selectedTicket == nil && lift.flight == nil
+            let pageSettled = selectedTicket == nil && lift.flight == nil && punchArrived
             ZStack {
                 if pageSettled {
                     PunchButton {
@@ -111,7 +116,7 @@ struct TimelineView: View {
                     ? (store.tickets.first(where: { $0.toStation.isEmpty }) ?? store.tickets.last)
                     : store.tickets.first
                 if let pick {
-                    openStage(pick, slotKey: (showAlbum ? "a-" : "t-") + pick.id.uuidString)
+                    openStage(pick, slotKey: (shelf.albumShowing ? "a-" : "t-") + pick.id.uuidString)
                 }
             }
             #endif
@@ -120,25 +125,29 @@ struct TimelineView: View {
 
     private var stackRoot: some View {
             ZStack {
-                if showAlbum {
+                // The collection lives BENEATH the open issue — the fold
+                // uncovers it; the two shelves never crossfade. Both are
+                // mounted only while the fold is actually in motion.
+                if shelf.albumMounted {
                     AlbumView(
                         selection: selectedTicket,
                         onOpen: { ticket in
                             openStage(ticket, slotKey: "a-\(ticket.id)")
                         },
                         onJumpMonth: jumpToMonth,
-                        onCloseAlbum: {
-                            Haptic.play(.page)
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
-                                showAlbum = false
-                            }
-                        },
+                        onCloseAlbum: { shelf.go(toAlbum: false) },
                         onOkuzuke: { showOkuzuke = true }
                     )
-                    .scaleEffect(albumPinchLive)
+                    .albumReveal(shelf)
                     .simultaneousGesture(albumPinchOpen)
-                    .transition(.scale(scale: 1.12).combined(with: .opacity))
-                } else {
+                    // Hard swap under explicit depth: a shelf only ever
+                    // unmounts fully covered (or fully dissolved), and an
+                    // ambient transaction must never turn that removal
+                    // into a floating crossfade above its sibling.
+                    .zIndex(0)
+                    .transition(.identity)
+                }
+                if shelf.magazineMounted {
                     Group {
                         if store.tickets.isEmpty {
                             EmptyStateView(onOkuzuke: { showOkuzuke = true })
@@ -146,28 +155,19 @@ struct TimelineView: View {
                             magazine
                         }
                     }
-                    .scaleEffect(pinchLive)
-                    // The pinch folds the page as a book closing — a few
-                    // degrees of lean and a deepening edge; releasing
-                    // unfolds it into the commit spring.
-                    .rotation3DEffect(
-                        .degrees(Double(1 - pinchLive) * 46),
-                        axis: (x: 1, y: 0, z: 0),
-                        perspective: 0.30
-                    )
-                    .shadow(
-                        color: .black.opacity(Double(1 - pinchLive) * 1.4),
-                        radius: 30,
-                        y: 18
-                    )
-                    .transition(.scale(scale: 0.88).combined(with: .opacity))
+                    .magazineFold(shelf)
+                    .zIndex(1)
+                    .transition(.identity)
                 }
             }
-            .opacity(arrived ? 1 : 0)
-            .offset(y: arrived ? 0 : 16)
             .onAppear {
-                withAnimation(.spring(response: 0.85, dampingFraction: 0.92).delay(0.06)) {
-                    arrived = true
+                guard arrivalT == 0 else { return }
+                withAnimation(.easeOut(duration: 0.85).delay(0.05)) {
+                    arrivalT = 1
+                }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(440))
+                    punchArrived = true
                 }
             }
             .dropDestination(for: Data.self) { items, _ in
@@ -183,7 +183,7 @@ struct TimelineView: View {
                 VStack(spacing: 0) {
                     PaperFade(side: .top, height: 92)
                     Spacer(minLength: 0)
-                    if !showAlbum, !store.tickets.isEmpty {
+                    if !shelf.albumShowing, !store.tickets.isEmpty {
                         PaperFade(side: .bottom, height: 132)
                     }
                 }
@@ -197,7 +197,7 @@ struct TimelineView: View {
                 // vacancy with it (the previous card sits back down, the
                 // new exhibit's seat empties).
                 guard old != nil, let new else { return }
-                lift.activeKey = (showAlbum ? "a-" : "t-") + new.id.uuidString
+                lift.activeKey = (shelf.albumShowing ? "a-" : "t-") + new.id.uuidString
                 if lift.vacantKey != nil {
                     lift.vacantKey = lift.activeKey
                 }
@@ -243,48 +243,28 @@ struct TimelineView: View {
 
     // MARK: Album ↔ magazine bridge
 
-    /// Pinch the magazine closed → the album. Direction-split with the
-    /// per-card pinch-open (which only listens above 1×).
+    /// Pinch the issue closed → the fingers hold the fold itself.
+    /// Direction-split with the per-card pinch-open (above 1×).
     private var magazinePinchClose: some Gesture {
         MagnifyGesture()
             .onChanged { value in
-                guard value.magnification < 1 else { return }
-                pinchLive = max(0.86, value.magnification)
+                guard value.magnification < 1 || shelf.scrubbing else { return }
+                shelf.scrubClose(magnification: value.magnification)
             }
-            .onEnded { value in
-                if value.magnification < 0.92 {
-                    Haptic.play(.page)
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
-                        showAlbum = true
-                        pinchLive = 1
-                    }
-                } else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        pinchLive = 1
-                    }
-                }
+            .onEnded { _ in
+                shelf.releaseClose()
             }
     }
 
-    /// Pinch the album open → back into the magazine.
+    /// Pinch the album open → the page lays back down over it.
     private var albumPinchOpen: some Gesture {
         MagnifyGesture()
             .onChanged { value in
-                guard value.magnification > 1 else { return }
-                albumPinchLive = min(1.12, value.magnification)
+                guard value.magnification > 1 || shelf.scrubbing else { return }
+                shelf.scrubOpen(magnification: value.magnification)
             }
-            .onEnded { value in
-                if value.magnification > 1.07 {
-                    Haptic.play(.page)
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
-                        showAlbum = false
-                        albumPinchLive = 1
-                    }
-                } else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        albumPinchLive = 1
-                    }
-                }
+            .onEnded { _ in
+                shelf.releaseOpen()
             }
     }
 
@@ -294,9 +274,9 @@ struct TimelineView: View {
         let target = store.tickets.first {
             calendar.dateComponents([.year, .month], from: $0.sortDate) == month
         }
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
-            showAlbum = false
-        }
+        // The fold mounts the magazine first; the jump lands while the
+        // page is still edge-on, so the reveal opens onto the month.
+        shelf.go(toAlbum: false)
         jumpTargetID = target?.id
     }
 
@@ -306,18 +286,23 @@ struct TimelineView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
+                    // The issue prints itself onto the blank launch paper:
+                    // masthead first, the catalogue after, one clock.
                     masthead
                         .padding(.top, 22)
                         .padding(.bottom, 48)
+                        .cascade(arrivalT, 0...0.5, rise: 6)
 
                     let numbers = store.catalogNumbers
                     ForEach(store.monthGroups, id: \.month) { group in
                         monthSection(group, numbers: numbers)
+                            .cascade(arrivalT, 0.22...0.9, rise: 12)
                     }
 
                     colophon
                         .padding(.top, 40)
                         .padding(.bottom, 124)
+                        .cascade(arrivalT, 0.22...0.9, rise: 12)
                 }
             }
             .scrollIndicators(.hidden)
@@ -325,7 +310,7 @@ struct TimelineView: View {
             .onChange(of: selectedTicket) { old, new in
                 // Paging inside the stage: keep the shelf positioned so the
                 // return zoom lands on the visible plate.
-                guard old != nil, let new, !showAlbum else { return }
+                guard old != nil, let new, !shelf.albumShowing else { return }
                 proxy.scrollTo(new.id, anchor: .center)
             }
             .onChange(of: jumpTargetID) { _, target in
@@ -353,12 +338,7 @@ struct TimelineView: View {
 
     private var masthead: some View {
         MagazineMasthead(
-            onAlbum: {
-                Haptic.play(.page)
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
-                    showAlbum = true
-                }
-            },
+            onAlbum: { shelf.go(toAlbum: true) },
             onOkuzuke: { showOkuzuke = true }
         )
     }
