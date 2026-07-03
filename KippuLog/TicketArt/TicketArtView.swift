@@ -57,10 +57,12 @@ struct StudioFrame: ViewModifier {
         content
             .shadow(color: .black.opacity(0.10), radius: 2, y: 1.5)   // contact
             .shadow(color: .black.opacity(0.13), radius: 20, y: 11)   // ambient key
-            .rotationEffect(.degrees(lying ? restingAngle : 0))
+            .rotationEffect(.degrees(lying ? Self.restingAngle(seed: seed) : 0))
     }
 
-    private var restingAngle: Double {
+    /// The seeded "laid on the table" tilt. Public because the lift's
+    /// flights must take off and land at exactly this angle.
+    static func restingAngle(seed: UInt64) -> Double {
         var rng = SeededRandom(seed ^ 0x71E)
         return rng.double(in: -2.1...2.1)
     }

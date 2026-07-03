@@ -63,6 +63,10 @@ struct TimelineEntry: View {
     /// ink. Both go still under Reduce Motion.
     private var plate: some View {
         TicketCard(ticket: ticket, gloss: reduceMotion ? 0 : (0.5 - screenPlace) * 0.9)
+            // While this ticket is out — on stage or in the lift's hand —
+            // its printed place waits empty. The captions stay: the page
+            // remembers the journey; only the object has been picked up.
+            .opacity(lift?.vacantKey == "t-\(ticket.id)" ? 0 : 1)
             .offset(y: parallax)
             .onGeometryChange(for: CGRect.self) { proxy in
                 proxy.frame(in: .global)

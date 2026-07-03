@@ -64,7 +64,10 @@ final class InteractionTests: XCTestCase {
         shot(app, "32-edit-sheet")
 
         app.buttons["保存"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["ABC → 名古屋"].waitForExistence(timeout: 6))
+        // The stage placard prints the stations separately (the combined
+        // route line lives on the hidden page behind the stage) — the
+        // hero's accessibility label carries the updated route.
+        XCTAssertTrue(app.otherElements["切符 ABC → 名古屋"].waitForExistence(timeout: 6))
     }
 
     @MainActor
@@ -101,9 +104,13 @@ final class InteractionTests: XCTestCase {
     func testPinchToDismissStage() throws {
         let app = launchWithSamples()
         app.staticTexts["新宿 → 箱根湯本"].firstMatch.tap()
-        XCTAssertTrue(app.otherElements["stage-hero"].waitForExistence(timeout: 6))
+        let hero = app.otherElements["stage-hero"].firstMatch
+        XCTAssertTrue(hero.waitForExistence(timeout: 6))
 
-        app.pinch(withScale: 0.4, velocity: -1.2)
+        // Pinch centred on the hero: synthesized gestures must anchor
+        // on an accessible element (the covered page is rightly hidden
+        // from the tree, so the bare app frame no longer validates).
+        hero.pinch(withScale: 0.4, velocity: -1.2)
         // Back on the shelf: masthead is visible again.
         XCTAssertTrue(app.staticTexts["COLLECTED JOURNEYS"].waitForExistence(timeout: 6))
     }

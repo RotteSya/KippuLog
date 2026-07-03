@@ -27,6 +27,13 @@ struct TicketStageView: View {
     var body: some View {
         ZStack {
             StudioBackdrop(center: UnitPoint(x: 0.5, y: 0.26), radius: 0.85, warmth: 0.55, air: true)
+                // The room is an accessibility PLACE, not just paint:
+                // with the page hidden behind the stage, synthesized
+                // gestures (XCUITest pinches) need an element under
+                // their touch points to validate against, and VoiceOver
+                // users get to know where they're standing.
+                .accessibilityElement()
+                .accessibilityLabel("展示室")
 
             StageRail(
                 tickets: store.tickets,
@@ -191,12 +198,17 @@ struct TicketStageView: View {
                 let m = value.magnification
                 if m < 1 {
                     pinchScale = max(0.82, 0.82 + 0.18 * m)
+                    // The pinch holds the page itself: squeezing the
+                    // stage swings the spread back in behind it, live —
+                    // the return begins in the fingers, not on release.
+                    lift?.scrubPage(Double((m - 0.60) / 0.40).clamped(to: 0...1))
                 }
             }
             .onEnded { value in
                 if value.magnification < 0.72 {
                     flyHome()
                 } else {
+                    lift?.settlePage(toward: 1)
                     withAnimation(.spring(response: 0.36, dampingFraction: 0.7)) {
                         pinchScale = 1
                     }
@@ -231,10 +243,12 @@ struct TicketStageView: View {
                 pageID = next.id
                 selection = next
             } else {
-                // The collection emptied — the lights simply come up.
+                // The collection emptied — the lights simply come up
+                // and the page swings back on its own, seat refilled.
                 withAnimation(.easeOut(duration: 0.16)) { departing = true }
                 Task {
                     try? await Task.sleep(for: .milliseconds(170))
+                    lift?.releaseSeat()
                     selection = nil
                 }
             }

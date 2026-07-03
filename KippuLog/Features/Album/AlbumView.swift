@@ -229,7 +229,21 @@ private struct AlbumMini: View {
             }
         }
         .shadow(color: .black.opacity(0.14), radius: 3, y: 2)
+        // While this ticket is out — on stage or in the lift's hand —
+        // only the print leaves; the photo corners stay pasted to the
+        // page, holding its empty place.
+        .opacity(lift?.vacantKey == "a-\(ticket.id)" ? 0 : 1)
         .overlay { PhotoCorners(color: Self.mount) }
+        // The mini's tap is attached HERE — before the month slip joins
+        // the tree — so the slip's corner is the slip's alone. A tap
+        // gesture attached after the overlay owns the slip's pixels too
+        // (contentShape flattens the composed view into one hit region)
+        // and pressing the slip would open the stage instead of jumping.
+        .contentShape(Rectangle())
+        .onTapGesture {
+            Haptic.play(.tick)
+            onOpen(ticket)
+        }
         .overlay(alignment: .topLeading) {
             if let monthSlip {
                 Button {
@@ -250,21 +264,21 @@ private struct AlbumMini: View {
                         .rotationEffect(.degrees(-3))
                 }
                 .buttonStyle(.plain)
-                .offset(x: -7, y: -9)
+                // Layout-honest nudge past the mount's corner: alignment
+                // guides move the accessibility frame with the pixels
+                // (a render `.offset` leaves the AX frame behind, and
+                // taps aimed at the slip land on the mini instead).
+                .alignmentGuide(.leading) { $0[.leading] + 7 }
+                .alignmentGuide(.top) { $0[.top] + 9 }
                 .accessibilityLabel("\(Editorial.kanjiMonth(monthSlip.month ?? 1))へ移動")
             }
         }
         .rotationEffect(.degrees(restingAngle))
-        .contentShape(Rectangle())
         .onGeometryChange(for: CGRect.self) { proxy in
             proxy.frame(in: .global)
         } action: { frame in
             // The mount's place on the page — where the lift lands.
             lift?.homes["a-\(ticket.id)"] = frame
-        }
-        .onTapGesture {
-            Haptic.play(.tick)
-            onOpen(ticket)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("切符 \(ticket.routeText)")

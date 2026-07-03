@@ -22,7 +22,9 @@ struct TimelineView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            stackRoot
+            PageTurn(engine: lift) {
+                stackRoot
+            }
                 .overlay {
                     // The stage — mounted the frame the lift seats its
                     // ticket, already wearing identical pixels. Identity
@@ -43,16 +45,25 @@ struct TimelineView: View {
         }
         .environment(lift)
         .overlay(alignment: .bottom) {
-            if selectedTicket == nil {
-                PunchButton {
-                    openGate()
+            // The gate belongs to the page's world: it leaves the moment
+            // a lift takes hold, and steps back in once the ticket is
+            // truly down and the spread lies flat again. Its spring is
+            // scoped HERE — an ambient `.animation(value:)` on the whole
+            // subtree would smear cross-fades over every one of the
+            // engine's hand-placed frames.
+            let pageSettled = selectedTicket == nil && lift.flight == nil
+            ZStack {
+                if pageSettled {
+                    PunchButton {
+                        openGate()
+                    }
+                    .scaleEffect(punchPop ? 1.16 : 1)
+                    .padding(.bottom, 14)
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
                 }
-                .scaleEffect(punchPop ? 1.16 : 1)
-                .padding(.bottom, 14)
-                .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
+            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: pageSettled)
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTicket == nil)
         .fullScreenCover(isPresented: $showCapture, onDismiss: { droppedImage = nil }) {
             CaptureFlowView(initialImage: droppedImage)
                 .presentationBackground(.clear)
@@ -182,9 +193,14 @@ struct TimelineView: View {
             .background(Ink.background)
             .onChange(of: selectedTicket) { old, new in
                 // Stage paging: keep the landing slot under whichever card
-                // is on stage, in whichever shelf is showing.
+                // is on stage, in whichever shelf is showing — and the
+                // vacancy with it (the previous card sits back down, the
+                // new exhibit's seat empties).
                 guard old != nil, let new else { return }
                 lift.activeKey = (showAlbum ? "a-" : "t-") + new.id.uuidString
+                if lift.vacantKey != nil {
+                    lift.vacantKey = lift.activeKey
+                }
             }
     }
 
@@ -425,6 +441,79 @@ struct TimelineView: View {
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// The whole spread as one sheet of paper in the lift's hand: opening a
+/// ticket turns the page away behind its spine while the object rises;
+/// closing swings it back beneath the descending ticket. Isolated in its
+/// own view so the engine's per-frame clock re-renders this transform
+/// alone — never the shelf inside it.
+private struct PageTurn<Content: View>: View {
+    let engine: LiftEngine
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        let turn = engine.pageTurn
+        // Once the page is fully turned away AND the flight is done,
+        // the opaque stage covers everything — so the page must return
+        // to its EXACT resting configuration, as if PageTurn weren't
+        // here. Any residue left on the hidden spread (opacity(0), a
+        // standing perspective modifier, accessibilityHidden, a dead
+        // hit-test region) poisons synthesized-event routing for the
+        // stage above it — XCUITest pinches and taps die. Hence a
+        // GeometryEffect (identity matrix at rest, no structural churn)
+        // and value-identity modifiers everywhere else.
+        let away = turn >= 0.999 && engine.flight == nil
+        let turning = turn > 0.001 && !away
+        ZStack {
+            // The dark room lives BENEATH the paper — turning the page
+            // reveals it; the sweep itself is the transition, no
+            // curtain fading in above. Always in the tree (structural
+            // churn re-plumbs the remote a11y snapshot), lit only when
+            // the page is in motion or a flight is in the air.
+            StudioBackdrop(
+                center: UnitPoint(x: 0.5, y: 0.26),
+                radius: 0.85,
+                warmth: 0.55
+            )
+            .opacity(turning || engine.flight != nil ? 1 : 0)
+
+            content
+                .modifier(PageTurnGeometry(turn: turning ? turn : 0))
+                // The far edge dips into the room's dark as it swings away.
+                .brightness(turning ? -turn * 0.28 : 0)
+                .opacity(turning ? 1 - Ease.inCubic(turn) : 1)
+                .allowsHitTesting(!turning)
+                // Proper modal semantics: a page fully behind the stage
+                // is silent to VoiceOver — and stage chrome never shares
+                // accessibility coordinates with page furniture (the
+                // magazine's and album's corner doors sit exactly under
+                // the stage's close button; element-routed taps would
+                // land on the page's door instead of the X).
+                .accessibilityHidden(away)
+        }
+    }
+}
+
+/// The page's swing as one projection matrix about the spine (the
+/// leading edge). A GeometryEffect so that at rest it is a TRUE
+/// identity — no transform layer, no hit-test detour, nothing for
+/// event routing to trip on — and mid-turn the hardware projects the
+/// spread exactly like a page on a hinge.
+private struct PageTurnGeometry: GeometryEffect {
+    var turn: Double
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        guard turn > 0.0001 else { return ProjectionTransform() }
+        var t = CATransform3DIdentity
+        // Eye distance ~1.8 page-widths: enough perspective to read as
+        // a turning sheet, not so much that the far edge smears.
+        t.m34 = -1 / max(size.width * 1.8, 1)
+        // Rotate about the Y axis through the layer origin — the spine
+        // runs down the page's leading edge.
+        t = CATransform3DRotate(t, -turn * 74 * .pi / 180, 0, 1, 0)
+        return ProjectionTransform(t)
     }
 }
 

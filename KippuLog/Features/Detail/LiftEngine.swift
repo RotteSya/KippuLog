@@ -56,6 +56,26 @@ final class LiftEngine: NSObject {
     /// and save let it go while the ticket travels.
     private(set) var roomOpacity: Double = 0
 
+    /// The slot whose object is out of the book — on stage or in the
+    /// air. The page keeps its printed captions; the ticket itself is
+    /// simply not there, until the landing frame puts it back. One
+    /// object, one place at a time.
+    var vacantKey: String?
+
+    /// The page's turn (0 flat … 1 turned away behind the spine).
+    /// Opening sweeps the spread away to the left as the ticket rises;
+    /// closing swings it back under the descending ticket. The stage's
+    /// pinch scrubs it live.
+    private(set) var pageTurn: Double = 0
+    /// Where the page stood when the current flight began (a pinch may
+    /// have already pulled it partway home).
+    @ObservationIgnored private var pageTurnAtStart: Double = 0
+    /// Settle target when no flight owns the page (pinch let go).
+    @ObservationIgnored private var pageSettleTarget: Double?
+    /// Reduce Motion keeps the page flat — flights cross a fading room
+    /// instead of a swinging spread. Read once per flight.
+    @ObservationIgnored private(set) var pageTurnsPages = true
+
     /// Fired the frame the open flight seats — mount the stage now.
     @ObservationIgnored var onSeated: (() -> Void)?
     /// Fired when a close/save flight lands on the page.
@@ -79,6 +99,9 @@ final class LiftEngine: NSObject {
             x: container.midX - 60, y: container.midY - 40, width: 120, height: 80
         )
         let to = Self.heroFrame(for: ticket, container: container, safeTop: safeTop)
+        // The object leaves its printed place the same frame the flight
+        // copy appears on it — one ticket, lifted, never two.
+        vacantKey = key
         start(Flight(kind: .open, ticket: ticket, from: from, to: to))
     }
 
@@ -90,10 +113,12 @@ final class LiftEngine: NSObject {
         let to = home(for: activeKey) ?? CGRect(
             x: container.midX - 50, y: container.maxY - 180, width: 100, height: 66
         )
+        // The slot stays empty until the ticket is truly down.
+        vacantKey = activeKey
         start(Flight(
             kind: .close, ticket: ticket, from: from, to: to,
             toKey: activeKey,
-            toRotation: activeKey.hasPrefix("a-") ? Self.albumRestingAngle(ticket) : 0
+            toRotation: Self.restingAngle(ticket, slot: activeKey)
         ))
     }
 
@@ -104,11 +129,43 @@ final class LiftEngine: NSObject {
         let to = home(for: key) ?? CGRect(
             x: from.midX - 50, y: UIScreen.main.bounds.maxY - 200, width: 100, height: 66
         )
+        // The fresh plate's slot waits empty for its ticket.
+        vacantKey = key
         start(Flight(
             kind: .save, ticket: ticket, from: from, to: to,
             toKey: key,
+            toRotation: Self.restingAngle(ticket, slot: key),
             roomCenter: UnitPoint(x: 0.5, y: 0.20), roomRadius: 0.80, roomWarmth: 0.50
         ))
+    }
+
+    // MARK: The page in the hand
+
+    /// Scrub the page directly (the stage's pinch owns it mid-gesture).
+    func scrubPage(_ value: Double) {
+        guard pageTurnsPages else { return }
+        pageSettleTarget = nil
+        pageTurn = min(max(value, 0), 1)
+    }
+
+    /// Let the page glide to `target` on its own clock (pinch released
+    /// without committing, or a stage that closed with nothing to fly).
+    func settlePage(toward target: Double) {
+        guard pageTurnsPages || target == 0 else { return }
+        pageSettleTarget = min(max(target, 0), 1)
+        if link == nil {
+            lastTick = CACurrentMediaTime()
+            let link = CADisplayLink(target: self, selector: #selector(tick))
+            link.add(to: .main, forMode: .common)
+            self.link = link
+        }
+    }
+
+    /// The stage closed without a flight (the collection emptied) — the
+    /// seat is filled again and the page comes back on its own.
+    func releaseSeat() {
+        vacantKey = nil
+        settlePage(toward: 0)
     }
 
     private func start(_ f: Flight) {
@@ -116,9 +173,13 @@ final class LiftEngine: NSObject {
         progress = 0
         velocity = 0
         landingNotified = false
+        pageSettleTarget = nil
+        pageTurnsPages = !UIAccessibility.isReduceMotionEnabled
+        pageTurnAtStart = pageTurn
         roomOpacity = f.kind == .open ? 0 : 1
         flightStart = CACurrentMediaTime()
         lastTick = flightStart
+        link?.invalidate()
         let link = CADisplayLink(target: self, selector: #selector(tick))
         link.add(to: .main, forMode: .common)
         self.link = link
@@ -127,10 +188,25 @@ final class LiftEngine: NSObject {
     // MARK: The clock
 
     @objc private func tick() {
-        guard let flight else { stop(); return }
         let now = CACurrentMediaTime()
         let dt = min(now - lastTick, 1.0 / 30.0)
         lastTick = now
+
+        guard let flight else {
+            // No flight — the clock may still be walking the page home
+            // (pinch released, or a stage that closed empty-handed).
+            if let target = pageSettleTarget {
+                pageTurn += (target - pageTurn) * min(1, dt * 11)
+                if abs(pageTurn - target) < 0.003 {
+                    pageTurn = target
+                    pageSettleTarget = nil
+                    stop()
+                }
+            } else {
+                stop()
+            }
+            return
+        }
 
         // Chase the slot's live frame — the page may settle mid-flight.
         if let key = flight.toKey, let live = homes[key], live != flight.to {
@@ -154,6 +230,22 @@ final class LiftEngine: NSObject {
             roomOpacity = 1 - Ease.outCubic(min(max(progress * 1.18, 0), 1))
         }
 
+        // The page's turn rides the same clock — one shot, one camera.
+        // Opening, the spread sweeps away behind the spine while the
+        // ticket rises; closing, it swings back FIRST (flat by 55%) so
+        // the ticket lands on a still page.
+        let p = min(max(progress, 0), 1)
+        switch flight.kind {
+        case .open where pageTurnsPages:
+            let t = Ease.inOutCubicSettle(min(max((p - 0.08) / 0.72, 0), 1))
+            pageTurn = pageTurnAtStart + (1 - pageTurnAtStart) * t
+        case .close where pageTurnsPages:
+            let t = Ease.inOutCubicSettle(min(max(p / 0.55, 0), 1))
+            pageTurn = pageTurnAtStart * (1 - t)
+        default:
+            break
+        }
+
         // Landing — settle detection with a hard ceiling so a starved
         // run loop can never strand a flight mid-air.
         let overdue = now - flightStart > 1.4
@@ -161,6 +253,11 @@ final class LiftEngine: NSObject {
             landingNotified = true
             progress = 1
             roomOpacity = flight.kind == .open ? 1 : 0
+            switch flight.kind {
+            case .open where pageTurnsPages: pageTurn = 1
+            case .close: pageTurn = 0
+            default: break
+            }
             switch flight.kind {
             case .open:
                 onSeated?()
@@ -179,6 +276,12 @@ final class LiftEngine: NSObject {
     }
 
     private func finish() {
+        // Landing puts the object back in its printed place — the slot
+        // refills the exact frame the flight copy vanishes. An open
+        // flight keeps its seat vacant: the ticket is on stage now.
+        if let kind = flight?.kind, kind != .open {
+            vacantKey = nil
+        }
         stop()
         flight = nil
         progress = 0
@@ -209,8 +312,10 @@ final class LiftEngine: NSObject {
         guard let flight else { return 0 }
         switch flight.kind {
         case .open:
-            // Un-tilting from an album mount, plus a leaf of sway.
-            let start = activeKey.hasPrefix("a-") ? Self.albumRestingAngle(flight.ticket) : 0
+            // Un-tilting from its seat's true resting angle (the page
+            // lays every object down a hair off square), plus a leaf
+            // of sway — the lift-off must not snap the tilt.
+            let start = Self.restingAngle(flight.ticket, slot: activeKey)
             return start * (1 - progress) + sin(progress * .pi) * -0.5
         case .close:
             return flight.toRotation * progress + sin(progress * .pi) * -0.6
@@ -270,6 +375,15 @@ final class LiftEngine: NSObject {
         var rng = SeededRandom(ticket.styleSeed ^ 0xA1B)
         return rng.double(in: -2.4...2.4)
     }
+
+    /// The angle a slot lays its object at — album mounts and magazine
+    /// spreads each have their own hand. Flights start and land at the
+    /// slot's true tilt so the swap frames are pixel-identical.
+    static func restingAngle(_ ticket: Ticket, slot key: String) -> Double {
+        key.hasPrefix("a-")
+            ? albumRestingAngle(ticket)
+            : StudioFrame.restingAngle(seed: ticket.styleSeed)
+    }
 }
 
 // MARK: - The overlay that prints the engine's values
@@ -288,12 +402,19 @@ struct LiftOverlay: View {
                 let rect = engine.ticketRect
 
                 ZStack {
-                    StudioBackdrop(
-                        center: flight.roomCenter,
-                        radius: flight.roomRadius,
-                        warmth: flight.roomWarmth
-                    )
-                    .opacity(engine.roomOpacity)
+                    // Open and close fly through the page-turn's world —
+                    // the room already lives beneath the paper. The save
+                    // flight (arriving from the capture cover, page flat)
+                    // carries its own fading room, as do all flights
+                    // under Reduce Motion, where the page never turns.
+                    if flight.kind == .save || !engine.pageTurnsPages {
+                        StudioBackdrop(
+                            center: flight.roomCenter,
+                            radius: flight.roomRadius,
+                            warmth: flight.roomWarmth
+                        )
+                        .opacity(engine.roomOpacity)
+                    }
 
                     TicketCardContent(
                         ticket: flight.ticket,
