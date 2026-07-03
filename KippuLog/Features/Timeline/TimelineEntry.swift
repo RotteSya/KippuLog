@@ -1,78 +1,50 @@
 import SwiftUI
 
-/// One spread in the magazine. A catalogue line floats above the plate
-/// (collector's number left, date right); below, the route in mincho
-/// with the fare on the same baseline, then the quiet caption.
+/// One spread in the magazine, set like a line in a great table of
+/// contents: the catalogue number leads across a dotted leader to the
+/// date, the plate sits on the page's one strong left axis, and the
+/// route runs its own leader out to the fare. Small cards keep their
+/// real-world scale — the leaders span the full column, so an edmondson
+/// stub reads as deliberately small, not lost.
 ///
-/// The card itself is the zoom-transition source — tapping anywhere on the
-/// entry (or pinching the card outward) sends the *ticket* flying into its
-/// stage, not the surrounding text.
+/// The card itself is the zoom-transition source — tapping anywhere on
+/// the entry (or pinching the card outward) sends the *ticket* flying
+/// into its stage, not the surrounding text.
 struct TimelineEntry: View {
     @Environment(LiftEngine.self) private var lift: LiftEngine?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let ticket: Ticket
     var number = 0
-    var alignment: HorizontalAlignment = .leading
     var onOpen: () -> Void = {}
 
     @State private var pinchScale: CGFloat = 1
     @State private var pinchFired = false
+    /// The card's centre as a fraction of the screen's height — drives
+    /// the passing gloss and the plate's gentle parallax.
+    @State private var screenPlace: CGFloat = 0.5
 
     var body: some View {
-        VStack(alignment: alignment, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             catalogueLine
-                .frame(maxWidth: plateWidth)
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
 
-            TicketCard(ticket: ticket)
-                .frame(maxWidth: plateWidth)
-                .onGeometryChange(for: CGRect.self) { proxy in
-                    proxy.frame(in: .global)
-                } action: { frame in
-                    // The slot's printed place — where the lift lands.
-                    lift?.homes["t-\(ticket.id)"] = frame
-                }
-                .scaleEffect(pinchScale, anchor: .center)
-                .scrollTransition(.interactive) { content, phase in
-                    content
-                        .offset(y: phase.value * -14)
-                        .rotation3DEffect(
-                            .degrees(phase.value * 2.4),
-                            axis: (x: 1, y: 0, z: 0),
-                            perspective: 0.4
-                        )
-                        .opacity(phase.isIdentity ? 1 : 0.65)
-                }
-                .padding(.bottom, 16)
+            plate
+                .padding(.bottom, 18)
 
-            HStack(alignment: .firstTextBaseline) {
-                Text(ticket.routeText)
-                    .font(Typo.mincho(20))
-                    .tracking(1.5)
-                    .foregroundStyle(Ink.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Spacer(minLength: 12)
-                if let price = ticket.price {
-                    Text(Editorial.yen(price))
-                        .font(Typo.serifFigure(12.5, weight: .regular))
-                        .foregroundStyle(Ink.textSoft)
-                }
-            }
-            .frame(maxWidth: plateWidth)
-            .padding(.bottom, 6)
+            routeLine
+                .padding(.bottom, 7)
 
             if let caption = captionLine {
                 Text(caption)
                     .font(Typo.caption(10))
                     .tracking(1.6)
                     .foregroundStyle(Ink.textFaint)
-                    .frame(maxWidth: plateWidth, alignment: frameTextAlignment)
             }
         }
         .scrollTransition(.interactive) { content, phase in
             content.opacity(phase.isIdentity ? 1 : 0.5)
         }
-        .frame(maxWidth: .infinity, alignment: frameAlignment)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture {
             Haptic.play(.tick)
@@ -81,6 +53,35 @@ struct TimelineEntry: View {
         .simultaneousGesture(pinchToOpen)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("timeline-entry-\(ticket.routeText)")
+    }
+
+    // MARK: The plate
+
+    /// The ticket, alive on the page: a soft gloss travels its face as
+    /// it passes the reader (the lamp is fixed; the page moves), and the
+    /// plate hangs a breath behind the type — paper has more mass than
+    /// ink. Both go still under Reduce Motion.
+    private var plate: some View {
+        TicketCard(ticket: ticket, gloss: reduceMotion ? 0 : (0.5 - screenPlace) * 0.9)
+            .offset(y: parallax)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { frame in
+                // The slot's printed place — where the lift lands.
+                // `.offset` is a render shift the geometry can't see, so
+                // fold it in by hand: flights must land on pixels.
+                lift?.homes["t-\(ticket.id)"] = frame.offsetBy(dx: 0, dy: parallax)
+                let screen = UIScreen.main.bounds.height
+                if screen > 0 {
+                    screenPlace = frame.midY / screen
+                }
+            }
+            .scaleEffect(pinchScale, anchor: .center)
+            .frame(maxWidth: plateWidth, alignment: .leading)
+    }
+
+    private var parallax: CGFloat {
+        reduceMotion ? 0 : (0.5 - screenPlace) * 9
     }
 
     /// Pinch a card outward and it grows in your fingers, then commits to
@@ -106,17 +107,39 @@ struct TimelineEntry: View {
 
     // MARK: Lines
 
+    /// No. 008 ・・・・・・・・・・・・ 6.7 SUN
     private var catalogueLine: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(String(format: "No. %03d", number))
                 .font(Typo.serifFigure(10, weight: .regular))
                 .foregroundStyle(Ink.textFaint)
-            Spacer(minLength: 12)
+            DotLeader(color: Ink.textFaint.opacity(0.55))
             if let date = ticket.travelDate {
                 Text(Editorial.shortDate(date))
                     .font(Typo.caption(9))
                     .tracking(2)
                     .foregroundStyle(Ink.textFaint)
+            }
+        }
+    }
+
+    /// 新宿 → 箱根湯本 ・・・・・・・ ¥2,470
+    private var routeLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(ticket.routeText)
+                .font(Typo.mincho(20))
+                .tracking(1.5)
+                .foregroundStyle(Ink.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .layoutPriority(1)
+            if ticket.price != nil {
+                DotLeader(color: Ink.textFaint.opacity(0.55))
+            }
+            if let price = ticket.price {
+                Text(Editorial.yen(price))
+                    .font(Typo.serifFigure(12.5, weight: .regular))
+                    .foregroundStyle(Ink.textSoft)
             }
         }
     }
@@ -132,13 +155,5 @@ struct TimelineEntry: View {
     /// real-world smaller scale.
     private var plateWidth: CGFloat {
         ticket.kind.isEdmondson ? 236 : 318
-    }
-
-    private var frameAlignment: Alignment {
-        alignment == .leading ? .leading : .trailing
-    }
-
-    private var frameTextAlignment: Alignment {
-        alignment == .leading ? .leading : .trailing
     }
 }

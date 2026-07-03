@@ -20,13 +20,16 @@ struct TicketCard: View {
     let ticket: Ticket
     /// Upright on the hero stage; laid at a seeded angle in the magazine.
     var lying = true
+    /// Passing gloss (−1…1): the lamp's sweep as the page scrolls.
+    var gloss: CGFloat = 0
 
     var body: some View {
         TicketCardContent(
             ticket: ticket,
             photo: store.photo(for: ticket),
             cutout: store.cutout(for: ticket),
-            lying: lying
+            lying: lying,
+            gloss: gloss
         )
     }
 }
@@ -37,6 +40,7 @@ struct TicketCardContent: View {
     let photo: UIImage?
     var cutout: UIImage? = nil
     var lying = true
+    var gloss: CGFloat = 0
 
     var body: some View {
         Group {
@@ -51,6 +55,10 @@ struct TicketCardContent: View {
                 TicketArtView(ticket: ticket)
             }
         }
+        // The sweep lives INSIDE the studio frame: gloss on the paper
+        // face only, never on the shadows around it (a colorEffect over
+        // a shadowed layer smears white halos through the soft edges).
+        .modifier(PassingGloss(gloss: gloss))
         .studioFrame(seed: ticket.styleSeed, lying: lying)
     }
 
@@ -60,6 +68,28 @@ struct TicketCardContent: View {
     private func scanAspect(_ photo: UIImage) -> CGFloat {
         ticket.photoAspect
             ?? (photo.size.height > 0 ? photo.size.width / photo.size.height : MarsTicketFace.aspect)
+    }
+}
+
+/// The scroll's light sweep, applied to the bare card face. Skips the
+/// shader entirely at rest so still pages pay nothing.
+private struct PassingGloss: ViewModifier {
+    var gloss: CGFloat
+
+    func body(content: Content) -> some View {
+        if gloss == 0 {
+            content
+        } else {
+            content.visualEffect { [gloss] view, proxy in
+                view.colorEffect(
+                    ShaderLibrary.holoSheen(
+                        .float2(proxy.size),
+                        .float2(Float(gloss), 0),
+                        .float(0.11)
+                    )
+                )
+            }
+        }
     }
 }
 

@@ -30,10 +30,20 @@ ticket gate.
    ticket could physically do.
 5. **Editorial, not utilitarian.** The timeline reads like a travel
    magazine's table of contents: kanji month headers, serif figures,
-   hairline rules, generous margins. The page runs out into paper at
-   its edges (`PaperFade`) — type never collides with the clock above
-   or the punch below.
-6. **No false affordances.** Nothing suggests an interaction it doesn't
+   hairline rules, generous margins — and the ToC's own grammar, the
+   dotted leader (`DotLeader`), carrying the eye from catalogue number
+   to date and from route to fare. One strong left axis; small
+   edmondson cards keep their real scale and read as deliberately
+   small against the full-width leaders. The page runs out into paper
+   at its edges (`PaperFade`) — type never collides with the clock
+   above or the punch below.
+6. **Say it once.** The ticket already prints its own facts; the page
+   around it may *read* them (a placard, a contents line) but never
+   repeats them as a table. The detail placard shows the collection's
+   voice — 収蔵 number, the journey drawn as a line, the fare set in
+   serif — and the 半券 carries the one thing the ticket can't: the
+   collector's handwritten 旅の記.
+7. **No false affordances.** Nothing suggests an interaction it doesn't
    honour: no sheet grabbers on desks that don't drag, no control ever
    sliced off at a screen edge — all six kind stamps share the row as
    equals on every width of phone.
@@ -69,9 +79,9 @@ over cream paper, like real security patterns.
 the **subject-lifted cutout** (the ticket's true silhouette, alpha-masked),
 the **borderless scan** (halo-peeled quad, corners inset 1.2%, full-bleed
 with a top edge catch-light), or the rendered plate for photo-less
-tickets. All wear the same `studioFrame`. Tap the stage hero for the
-full-screen `PhotoInspector` (pinch 1–5×, double-tap, drag-down); pinch a
-timeline card outward to zoom into its stage.
+tickets. All wear the same `studioFrame`. Pinch a timeline card outward
+to zoom into its stage; the seated exhibit is calm — the lift's flights
+carry all the motion.
 
 ### The fallback plate (TicketArt)
 
@@ -128,10 +138,10 @@ the words and buttons. The launch screen wears `LaunchBackground`
 | first launch | the opening ceremony above; lights-up hands off to the masthead, whose seal stamps in once per session |
 | open capture | no system slide — the studio dims in over the page (0.38s), the same lights that opened the app |
 | leave capture | lights up over a shelf already walking to the fresh plate; the punched-in sweep lands as the paper returns |
-| timeline → detail | zoom transition; the photo settles under the lamp while one pass of the reading light sweeps it |
+| timeline → detail | the lift raises the card into the lamp; once the exhibit holds still, the placard lays itself out — catalogue line first, then the route draws itself as a line of track (the arrival dot presses in 朱), the fare, and finally the 旅の記 slip rises into place |
 | timeline pinch | the live pinch folds the page like a book closing (X-lean + deepening edge); release unfolds into the album commit. The colophon whispers the way in |
 | timeline ⇄ 収蔵帳 | pinch the magazine closed → the year album (kraft spreads, photo-corner mounts, month slips); pinch open to return |
-| detail | the real photo, tilt for gloss + table reflection; facts on the 半券 stub |
+| detail | the exhibit and its placard: the real photo still under the lamp; below, the curator's reading — 収蔵 No. across a dotted leader to the date, the journey drawn as one line of track between the station names, one metadata line, the fare in serif. Nothing the ticket already prints is repeated as a table. The torn 半券 belongs to the collector: 旅の記, handwritten in pen-blue ink |
 | detail browse | the shelf rail (StageRail): one continuous position under a CADisplayLink spring — the finger owns it, cards lean on a perspective rail, neighbours recede a step out of the lamp, the notch is a haptic, everything interruptible mid-flight |
 | detail dismiss | pinch-out or drag; card returns to its shelf |
 | viewfinder | one living guide, three acts: corner grips breathe around a MARS window → fly onto the detected ticket's corners (veil re-cuts itself around the quad, one animatable `Quad4` drives every shape) → a vermilion loop draws from the top centre both ways across the hold-still window and seals as the gate fires; the shutter dial mirrors the same clock |
@@ -142,7 +152,7 @@ the words and buttons. The launch screen wears `LaunchBackground`
 | keyboard | the ticket steps aside; the desk takes the whole room; save never sinks below the keys |
 | delete | 改札の問い first — a torn paper slip slides onto the desk (手放す in shu / やめる in hairline; never a system dialog) — then 改札回収: the card tears into strips that flutter and fall (shredFall layerEffect) |
 | save | the desk withdraws, the ticket sinks toward the book and fades as the lights come up on the shelf already walking to the fresh plate |
-| scroll | subtle parallax + light sweep across cards |
+| scroll | the plate hangs a breath behind the type (paper has more mass than ink) and a gloss travels its face as it passes the reader — the lamp is fixed, the page moves. The sweep lives inside the studio frame: gloss on the paper only, never on the shadows |
 
 ## Haptics
 

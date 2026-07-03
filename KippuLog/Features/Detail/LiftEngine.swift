@@ -301,15 +301,10 @@ struct LiftOverlay: View {
                         cutout: store.cutout(for: flight.ticket),
                         lying: false
                     )
-                    .visualEffect { content, proxy in
-                        content.colorEffect(
-                            ShaderLibrary.holoSheen(
-                                .float2(proxy.size),
-                                .float2(0, 0),
-                                .float(0.12)
-                            )
-                        )
-                    }
+                    // Bare card, like the seated hero it becomes: a
+                    // colorEffect layer under `.shadow` leaves terraced
+                    // halos in the dark room, and handover must be
+                    // pixel-identical.
                     .frame(width: rect.width, height: rect.height)
                     .rotationEffect(.degrees(engine.ticketRotation))
                     .rotation3DEffect(

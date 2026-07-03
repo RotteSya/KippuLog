@@ -1,15 +1,24 @@
 import SwiftUI
 
-/// 半券 — the journey's facts printed as a torn-off stub, perforation
-/// teeth along the top. Same stock, same serial as the plate above it.
-struct StubCard: View {
+/// 旅の記 — the collector's note, written on the back of the torn 半券.
+/// The slip carries the same stock and serial as the ticket above it;
+/// the writing is pen ink, not print. The stub used to repeat the
+/// ticket's own facts — now it holds the one thing the ticket can't:
+/// what the journey felt like.
+struct MemoSlip: View {
+    @Environment(TicketStore.self) private var store
     let ticket: Ticket
 
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    /// Pen ink — blue-black, the one hand-made mark in the studio.
+    private static let penInk = Color(hex: 0x3A4459)
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header row.
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("ご利用控")
+                Text("旅　の　記")
                     .font(Typo.gothic(9.5, bold: true))
                     .tracking(2.5)
                 Spacer()
@@ -17,33 +26,24 @@ struct StubCard: View {
                     .font(Typo.gothic(8.5))
             }
             .foregroundStyle(Ink.ticketInkSoft)
-            .padding(.bottom, 14)
 
-            // Facts, two columns of small print.
-            let facts = factPairs
-            let columns = [
-                GridItem(.flexible(), alignment: .topLeading),
-                GridItem(.flexible(), alignment: .topLeading),
-            ]
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 13) {
-                ForEach(facts, id: \.0) { label, value in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(label)
-                            .font(Typo.gothic(8.5))
-                            .tracking(2)
-                            .foregroundStyle(Ink.ticketInkSoft.opacity(0.85))
-                        Text(value)
-                            .font(Typo.gothic(12, bold: true))
-                            .foregroundStyle(Ink.ticketInk)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
+            TextField("ひとこと残す…", text: $draft, axis: .vertical)
+                .font(.custom("HiraMaruProN-W4", size: 14))
+                .lineSpacing(9)
+                .foregroundStyle(Self.penInk)
+                .tint(Ink.shu)
+                .focused($focused)
+                .lineLimit(2...8)
+                .accessibilityIdentifier("memo-field")
+                .accessibilityLabel("旅の記")
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { save() }
                 }
-            }
+                .submitLabel(.done)
         }
         .padding(.horizontal, 18)
-        .padding(.top, 16)
-        .padding(.bottom, 16)
+        .padding(.top, 15)
+        .padding(.bottom, 17)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             StubShape(toothCount: 26, toothDepth: 4, corner: 5)
@@ -68,17 +68,26 @@ struct StubCard: View {
         }
         .shadow(color: .black.opacity(0.30), radius: 10, y: 7)
         .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+        .onAppear { draft = ticket.memo }
+        .toolbar {
+            if focused {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完了") { focused = false }
+                        .font(Typo.gothic(13, bold: true))
+                        .tint(Ink.shu)
+                }
+            }
+        }
     }
 
-    private var factPairs: [(String, String)] {
-        var pairs: [(String, String)] = [
-            ("会社", ticket.brand.displayName),
-        ]
-        if let train = ticket.trainName { pairs.append(("列車", train)) }
-        if let seat = ticket.seat { pairs.append(("座席", seat)) }
-        if let price = ticket.price { pairs.append(("運賃", TicketText.price(price))) }
-        if let date = ticket.travelDate { pairs.append(("日付", TicketText.faceDate(date))) }
-        return pairs
+    private func save() {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != ticket.memo else { return }
+        var updated = ticket
+        updated.memo = trimmed
+        store.update(updated)
+        Haptic.play(.tick)
     }
 }
 
@@ -118,7 +127,8 @@ nonisolated struct StubShape: Shape {
 #Preview {
     ZStack {
         StudioBackdrop()
-        StubCard(ticket: Ticket.samples[1])
-            .frame(width: 300)
+        MemoSlip(ticket: Ticket.samples[1])
+            .frame(width: 318)
     }
+    .environment(TicketStore())
 }

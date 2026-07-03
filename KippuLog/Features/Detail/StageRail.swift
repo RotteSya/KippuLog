@@ -80,6 +80,12 @@ final class StageRailView: UIView, UIGestureRecognizerDelegate {
     private var link: CADisplayLink?
     private var lastTick: CFTimeInterval = 0
 
+    /// How settled the shelf is (1 = at rest, 0 = in hand / in flight).
+    /// At rest the neighbours sink out of the lamp entirely — one lit
+    /// ticket, one dark room; the moment the rail moves, the shelf
+    /// lights itself back up so the browse reads as a shelf.
+    private var restLife: CGFloat = 1
+
     // MARK: Hosts (three seats, rebound as the shelf slides)
 
     private struct Seat {
@@ -212,8 +218,11 @@ final class StageRailView: UIView, UIGestureRecognizerDelegate {
             transform = CATransform3DRotate(transform, -progress * 0.10, 0, 1, 0)
             seat.controller.view.layer.transform = transform
 
-            // A step out of the pool of light.
-            seat.controller.view.alpha = 1 - recede * 0.45
+            // A step out of the pool of light — and at rest, out of the
+            // room: neighbours fade to nothing so the settled stage
+            // holds a single lit exhibit, never smudges at the wings.
+            let dim = 0.45 + 0.55 * restLife
+            seat.controller.view.alpha = 1 - recede * dim
         }
     }
 
@@ -230,6 +239,17 @@ final class StageRailView: UIView, UIGestureRecognizerDelegate {
         let now = CACurrentMediaTime()
         let dt = min(now - lastTick, 1.0 / 30.0)
         lastTick = now
+
+        // The shelf's light answers motion: wake fast, settle slow.
+        let moving = dragging || abs(velocity) > 0.05 || abs(position - target) > 0.004
+        let restBefore = restLife
+        if moving {
+            restLife = max(0, restLife - CGFloat(dt) * 7)
+        } else {
+            restLife = min(1, restLife + CGFloat(dt) * 1.6)
+        }
+        if restLife != restBefore, dragging { place() }
+
         guard !dragging else { return }
 
         // Critically-damped-ish spring toward the target notch.

@@ -94,8 +94,13 @@ struct TimelineView: View {
             // for the album's return.
             if ProcessInfo.processInfo.arguments.contains("-uiTestProbeReturn") {
                 try? await Task.sleep(for: .seconds(2))
-                if let first = store.tickets.first {
-                    openStage(first, slotKey: (showAlbum ? "a-" : "t-") + first.id.uuidString)
+                // `-uiTestProbeLast` picks a single-station ticket (the
+                // seeded 入場券) so bursts can dissect both placard shapes.
+                let pick = ProcessInfo.processInfo.arguments.contains("-uiTestProbeLast")
+                    ? (store.tickets.first(where: { $0.toStation.isEmpty }) ?? store.tickets.last)
+                    : store.tickets.first
+                if let pick {
+                    openStage(pick, slotKey: (showAlbum ? "a-" : "t-") + pick.id.uuidString)
                 }
             }
             #endif
@@ -289,11 +294,9 @@ struct TimelineView: View {
                         .padding(.top, 22)
                         .padding(.bottom, 48)
 
-                    let groups = store.monthGroups
-                    let starts = entryStartIndices(groups)
-                    let numbers = catalogNumbers
-                    ForEach(Array(groups.enumerated()), id: \.element.month) { groupIndex, group in
-                        monthSection(group, startIndex: starts[groupIndex], numbers: numbers)
+                    let numbers = store.catalogNumbers
+                    ForEach(store.monthGroups, id: \.month) { group in
+                        monthSection(group, numbers: numbers)
                     }
 
                     colophon
@@ -330,12 +333,6 @@ struct TimelineView: View {
         }
     }
 
-    /// Chronological catalogue numbers — the oldest journey is No. 001.
-    private var catalogNumbers: [UUID: Int] {
-        let ascending = store.tickets.sorted { $0.sortDate < $1.sortDate }
-        return Dictionary(uniqueKeysWithValues: ascending.enumerated().map { ($1.id, $0 + 1) })
-    }
-
     // MARK: Masthead
 
     private var masthead: some View {
@@ -352,20 +349,8 @@ struct TimelineView: View {
 
     // MARK: Sections
 
-    /// Running entry offsets so the left/right rhythm carries across months.
-    private func entryStartIndices(_ groups: [(month: DateComponents, tickets: [Ticket])]) -> [Int] {
-        var starts: [Int] = []
-        var total = 0
-        for group in groups {
-            starts.append(total)
-            total += group.tickets.count
-        }
-        return starts
-    }
-
     private func monthSection(
         _ group: (month: DateComponents, tickets: [Ticket]),
-        startIndex: Int,
         numbers: [UUID: Int]
     ) -> some View {
         VStack(spacing: 0) {
@@ -373,18 +358,17 @@ struct TimelineView: View {
                 .padding(.horizontal, 30)
                 .padding(.bottom, 36)
 
-            ForEach(Array(group.tickets.enumerated()), id: \.element.id) { index, ticket in
+            ForEach(group.tickets) { ticket in
                 TimelineEntry(
                     ticket: ticket,
                     number: numbers[ticket.id] ?? 0,
-                    alignment: (startIndex + index).isMultiple(of: 2) ? .leading : .trailing,
                     onOpen: {
                         openStage(ticket, slotKey: "t-\(ticket.id)")
                     }
                 )
                 .id(ticket.id)
-                .padding(.horizontal, 26)
-                .padding(.bottom, 56)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 60)
             }
         }
         .padding(.bottom, 16)

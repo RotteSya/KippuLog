@@ -227,6 +227,14 @@ final class TicketStore {
         tickets.compactMap(\.price).reduce(0, +)
     }
 
+    /// Chronological catalogue numbers — the oldest journey is No. 001.
+    /// One numbering shared by the magazine's entries and the stage's
+    /// placard.
+    var catalogNumbers: [UUID: Int] {
+        let ascending = tickets.sorted { $0.sortDate < $1.sortDate }
+        return Dictionary(uniqueKeysWithValues: ascending.enumerated().map { ($1.id, $0 + 1) })
+    }
+
     /// Tickets grouped year → month, newest first — the album's spreads.
     var yearGroups: [(year: Int, months: [(month: DateComponents, tickets: [Ticket])])] {
         let calendar = Calendar(identifier: .gregorian)

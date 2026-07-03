@@ -2,21 +2,31 @@ import SwiftUI
 
 /// One ticket under the lamp: the real photographed ticket sits lit and
 /// still, its paper stock and cut edges catching the studio light — the
-/// lift's flights carry the motion, the exhibit itself is calm. Facts
-/// ride on a torn stub below.
+/// lift's flights carry the motion, the exhibit itself is calm.
+///
+/// Below it, the placard: the curator's reading of the journey. A
+/// catalogue line, the route drawn as a line of track, the fare set in
+/// serif, and the torn 半券 holding the collector's handwritten note —
+/// nothing the ticket already prints is repeated as a table.
 struct StagePage: View {
     @Environment(TicketStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let ticketID: UUID
     var shredProgress: Double = 0
     /// Departure: facts dissolve while the ticket holds the light.
     var departing = false
 
-    @State private var memoDraft = ""
-    @FocusState private var memoFocused: Bool
+    /// The placard clock — 0 at mount, swept to 1 as the exhibit
+    /// settles; every element below the hero reads its own window.
+    @State private var placardT: CGFloat = 0
 
     var body: some View {
         if let ticket = store.tickets.first(where: { $0.id == ticketID }) {
             content(ticket)
+                // Seats are recycled as the rail slides — the page's
+                // state (note draft, placard clock) belongs to the
+                // exhibit, not the seat.
+                .id(ticketID)
         } else {
             Color.clear
         }
@@ -27,37 +37,27 @@ struct StagePage: View {
             VStack(spacing: 0) {
                 hero(ticket)
                     .padding(.top, 64)
-                    .padding(.bottom, 52)
+                    .padding(.bottom, 56)
 
                 Group {
-                    Text(ticket.routeText)
-                        .font(Typo.mincho(25))
-                        .tracking(2.5)
-                        .foregroundStyle(Stage.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 10)
+                    catalogLine(ticket)
+                        .cascade(placardT, 0.00...0.22)
+                        .padding(.bottom, 34)
 
-                    if let date = ticket.travelDate {
-                        Text(Editorial.shortDate(date))
-                            .font(Typo.caption(10.5))
-                            .tracking(3)
-                            .foregroundStyle(Stage.faintText)
+                    JourneyLine(ticket: ticket, progress: placardT)
+
+                    if let price = ticket.price {
+                        fareBlock(price)
+                            .cascade(placardT, 0.68...0.94)
+                            .padding(.top, 30)
                     }
 
-                    StubCard(ticket: ticket)
-                        .frame(maxWidth: 318)
-                        .padding(.horizontal, 30)
+                    MemoSlip(ticket: ticket)
+                        .cascade(placardT, 0.76...1.00, rise: 12)
                         .padding(.top, 38)
-
-                    // The note shares the stub's column — one margin
-                    // system for everything below the exhibit.
-                    memoBlock(ticket)
-                        .frame(maxWidth: 318)
-                        .padding(.horizontal, 30)
-                        .padding(.top, 36)
                 }
+                .frame(maxWidth: 318)
+                .padding(.horizontal, 30)
                 // The page clears its throat while the gate takes the
                 // ticket — and again when the ticket departs for home.
                 .opacity(departing ? 0 : 1 - min(1, shredProgress * 2.6))
@@ -71,10 +71,19 @@ struct StagePage: View {
         // a bare 0→1 jump, so the page owns its own tearing clock.
         .animation(.easeIn(duration: 0.95), value: shredProgress)
         .scrollIndicators(.hidden)
-        .onAppear {
-            memoDraft = ticket.memo
-        }
         .scrollDismissesKeyboard(.interactively)
+        .onAppear {
+            guard placardT == 0 else { return }
+            guard !reduceMotion else {
+                placardT = 1
+                return
+            }
+            // The lift seats the hero first; the curator lays the cards
+            // out once the exhibit holds still.
+            withAnimation(.easeInOut(duration: 1.1).delay(0.42)) {
+                placardT = 1
+            }
+        }
     }
 
     // MARK: Hero
@@ -91,17 +100,12 @@ struct StagePage: View {
             lying: false
         )
         .frame(maxWidth: heroWidth(ticket))
-        // One soft gloss at rest — the same sheen the ticket wears as it
-        // flies in on the lift, so the seated hero and the flight match.
-        .visualEffect { content, proxy in
-            content.colorEffect(
-                ShaderLibrary.holoSheen(
-                    .float2(proxy.size),
-                    .float2(0, 0),
-                    .float(0.12)
-                )
-            )
-        }
+        // No static sheen on the exhibit: a colorEffect layer under
+        // `.shadow` rasterises into faint terraced halos around the card
+        // (visible in the dark room), and a frozen gloss band adds ~2%
+        // at most. The paper stock and cut edges carry the light; the
+        // lift's flight card is bare for the same reason — identical
+        // pixels at handover.
     }
 
     /// The exhibit under glass — lit, grounded, and still. The lift's
@@ -117,60 +121,80 @@ struct StagePage: View {
             .accessibilityIdentifier("stage-hero")
     }
 
-    // MARK: Memo
+    // MARK: Placard
 
-    private func memoBlock(_ ticket: Ticket) -> some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 7) {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(Ink.shu)
-                    .frame(width: 8, height: 8)
-                    .rotationEffect(.degrees(-3))
-                Text("旅の記")
-                    .font(Typo.gothic(10, bold: true))
-                    .tracking(3)
+    /// 収蔵 No. 008 ・・・・・・・・ 6.7 SUN — the exhibit's catalogue line.
+    private func catalogLine(_ ticket: Ticket) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("収蔵")
+                .font(Typo.gothic(9.5, bold: true))
+                .tracking(2.5)
+                .foregroundStyle(Stage.faintText)
+            if let number = store.catalogNumbers[ticket.id] {
+                Text(String(format: "No. %03d", number))
+                    .font(Typo.serifFigure(11, weight: .regular))
+                    .foregroundStyle(Stage.softText)
+            }
+            DotLeader(color: Stage.faintText.opacity(0.55))
+            if let date = ticket.travelDate {
+                Text(Editorial.shortDate(date))
+                    .font(Typo.caption(9.5))
+                    .tracking(2.5)
                     .foregroundStyle(Stage.faintText)
-            }
-
-            TextField(
-                "ひとこと残す…",
-                text: $memoDraft,
-                axis: .vertical
-            )
-            .font(Typo.gothic(13.5))
-            .lineSpacing(8)
-            .foregroundStyle(Stage.softText)
-            .tint(Ink.shu)
-            .focused($memoFocused)
-            .lineLimit(2...8)
-            .accessibilityIdentifier("memo-field")
-            .onChange(of: memoFocused) { _, focused in
-                if !focused { saveMemo(ticket) }
-            }
-            .submitLabel(.done)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .toolbar {
-            if memoFocused {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("完了") {
-                        memoFocused = false
-                    }
-                    .font(Typo.gothic(13, bold: true))
-                    .tint(Ink.shu)
-                }
             }
         }
     }
 
-    private func saveMemo(_ ticket: Ticket) {
-        let trimmed = memoDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != ticket.memo else { return }
-        var updated = ticket
-        updated.memo = trimmed
-        store.update(updated)
-        Haptic.play(.tick)
+    /// The fare, set like a placard figure — one hairline, one label,
+    /// one serif number.
+    private func fareBlock(_ price: Int) -> some View {
+        VStack(spacing: 13) {
+            Rectangle()
+                .fill(Stage.rule)
+                .frame(height: 0.7)
+            HStack(alignment: .firstTextBaseline) {
+                Text("運賃")
+                    .font(Typo.gothic(9.5, bold: true))
+                    .tracking(2.5)
+                    .foregroundStyle(Stage.faintText)
+                Spacer()
+                Text(Editorial.yen(price))
+                    .font(Typo.serifFigure(22, weight: .regular))
+                    .foregroundStyle(Stage.text)
+            }
+        }
+    }
+}
+
+// MARK: Cascade
+
+/// Windowed arrival off one clock: the element fades and rises inside
+/// its own slice of the placard's sweep. Animatable, so the window is
+/// honoured per frame instead of being flattened into one long fade.
+private struct CascadeIn: ViewModifier, Animatable {
+    var progress: CGFloat
+    var window: ClosedRange<CGFloat>
+    var rise: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        let span = max(window.upperBound - window.lowerBound, 0.0001)
+        let t = min(max((progress - window.lowerBound) / span, 0), 1)
+        // Ease the landing so each element settles, never snaps.
+        let eased = 1 - (1 - t) * (1 - t)
+        return content
+            .opacity(Double(eased))
+            .offset(y: (1 - eased) * rise)
+    }
+}
+
+extension View {
+    func cascade(_ progress: CGFloat, _ window: ClosedRange<CGFloat>, rise: CGFloat = 8) -> some View {
+        modifier(CascadeIn(progress: progress, window: window, rise: rise))
     }
 }
 
