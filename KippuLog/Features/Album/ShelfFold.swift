@@ -115,9 +115,10 @@ final class ShelfFold: NSObject {
         lastTick = now
         guard let target else { stop(); return }
 
-        // Paper laid down, not bounced — a dead-beat spring, with a hard
+        // Paper rolled, not bounced — a dead-beat spring with a touch of
+        // glide (the roll travels the page's whole diagonal), and a hard
         // ceiling so a starved run loop can never strand the fold.
-        let accel = -175 * (fold - target) - 26 * velocity
+        let accel = -150 * (fold - target) - 24.5 * velocity
         velocity += accel * dt
         fold += velocity * dt
 
@@ -158,22 +159,156 @@ private struct MagazineFoldEffect: ViewModifier {
     func body(content: Content) -> some View {
         let f = engine.fold
         let folds = engine.foldsPages
-        // The page stays paper-opaque through the fold — only the last
-        // edge-on sliver dissolves, so the eye never reads two sheets.
-        let opacity = folds
-            ? 1 - smoothWindow(f, from: 0.72, to: 0.93)
-            : 1 - smoothWindow(f, from: 0.15, to: 0.85)
         content
             // The page is PAPER — it carries its own opaque sheet. The
             // shared app background lives behind the album; without this
             // the fold would show the collection straight through the
             // issue's clear scroll surface.
             .background(Ink.background.ignoresSafeArea())
-            .modifier(SheetFoldGeometry(fold: folds ? f : 0))
-            .brightness(folds ? -0.30 * f : 0)
-            .opacity(opacity)
+            // Reduce Motion: no roll — a quiet dissolve between shelves.
+            .opacity(folds ? 1 : 1 - smoothWindow(f, from: 0.15, to: 0.85))
+            // The still-flat part of the sheet. Everything past the
+            // contact line has wound onto the roll — a diagonal mask,
+            // pure compositing, so the LIVE scroll view keeps breathing
+            // underneath. (A Metal layerEffect cannot see a platform-
+            // backed ScrollView at all — the layer renders empty; hence
+            // the curl is drawn, not sampled.)
+            .mask {
+                FlatSheetRegion(fold: folds ? f : 0, radius: ShelfFold.curlRadius)
+                    .ignoresSafeArea()
+            }
+            // The roll itself, drawn per frame: a cylinder of the page's
+            // own paper — crest light, silhouette rim, and the shadows it
+            // drags across what it uncovers. Every column of the page
+            // bends on its own; nothing moves like a slide transition.
+            .overlay {
+                // Structurally absent at rest — the round-8 lesson: any
+                // standing residue over the page corrupts synthesized-
+                // event routing for XCUITest, even hit-test-transparent.
+                if folds && f > 0.0005 {
+                    CurlRoll(fold: f, radius: ShelfFold.curlRadius)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
             .allowsHitTesting(engine.scrubbing || f < 0.02)
             .accessibilityHidden(f > 0.5)
+    }
+}
+
+extension ShelfFold {
+    /// The roll's radius in points — one cylinder for mask and chrome.
+    static let curlRadius: CGFloat = 58
+}
+
+/// The half-plane of page still lying flat: everything the roll hasn't
+/// reached, measured along the diagonal from the bottom-trailing corner.
+private struct FlatSheetRegion: Shape {
+    var fold: Double
+    var radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        guard fold > 0.0005 else { return Path(rect.insetBy(dx: -80, dy: -80)) }
+        let diagonal = hypot(rect.width, rect.height)
+        let contact = fold * (diagonal + 2.6 * radius)
+        // A huge rect in curl coordinates (x along the diagonal from the
+        // corner), swung into place about the bottom-trailing corner.
+        let span = diagonal * 4
+        return Path(CGRect(x: contact, y: -span, width: span * 2, height: span * 2))
+            .applying(
+                CGAffineTransform(translationX: rect.maxX, y: rect.maxY)
+                    .rotated(by: atan2(-rect.height, -rect.width))
+            )
+    }
+}
+
+/// The rolled-up paper travelling the diagonal, drawn — not sampled.
+private struct CurlRoll: View {
+    var fold: Double
+    var radius: CGFloat
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Canvas { ctx, size in
+            guard fold > 0.0005 else { return }
+            let diagonal = hypot(size.width, size.height)
+            let contact = fold * (diagonal + 2.6 * radius)
+            let r = radius
+            // How much paper the roll has wound up — nothing to shade
+            // at the very first touch.
+            let body = min(contact / (.pi * r), 1)
+
+            ctx.transform = CGAffineTransform(translationX: size.width, y: size.height)
+                .rotated(by: atan2(-size.height, -size.width))
+            let span = diagonal * 4
+            func band(_ from: CGFloat, _ to: CGFloat) -> Path {
+                Path(CGRect(x: from, y: -span, width: to - from, height: span * 2))
+            }
+            func at(_ x: CGFloat) -> CGPoint { CGPoint(x: x, y: 0) }
+
+            // The sheet's own paper, lit around the cylinder: silhouette
+            // edge dark against the album, crest catching the lamp, a
+            // crease where the flat page feeds under.
+            let stops: [Gradient.Stop] = [
+                .init(color: paper(0.75), location: 0),
+                .init(color: paper(0.90), location: 0.24),
+                .init(color: paper(1.035), location: 0.52),
+                .init(color: paper(0.965), location: 0.80),
+                .init(color: paper(0.86), location: 1),
+            ]
+            // The shadow the roll drags across the uncovered collection.
+            ctx.fill(
+                band(contact - r - 46, contact - r + 0.5),
+                with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black.opacity(0.15 * body), location: 1),
+                    ]),
+                    startPoint: at(contact - r - 46),
+                    endPoint: at(contact - r)
+                )
+            )
+            // The roll.
+            ctx.fill(
+                band(contact - r, contact + r),
+                with: .linearGradient(
+                    Gradient(stops: stops),
+                    startPoint: at(contact - r),
+                    endPoint: at(contact + r)
+                )
+            )
+            // Paper-thickness rim on the silhouette edge.
+            ctx.fill(
+                band(contact - r, contact - r + 0.9),
+                with: .color(.black.opacity(0.20 * body))
+            )
+            // The loom: soft shade pooling on the flat page just ahead.
+            ctx.fill(
+                band(contact + r, contact + r + 32),
+                with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: .black.opacity(0.13 * body), location: 0),
+                        .init(color: .clear, location: 1),
+                    ]),
+                    startPoint: at(contact + r),
+                    endPoint: at(contact + r + 32)
+                )
+            )
+        }
+    }
+
+    /// The page's paper shaded around the cylinder — resolved by scheme
+    /// (Ink.background's own light/dark stock).
+    private func paper(_ k: Double) -> Color {
+        let base: (Double, Double, Double) = scheme == .dark
+            ? (0.090, 0.078, 0.067)   // #171411
+            : (0.969, 0.953, 0.922)   // #F7F3EB
+        return Color(
+            red: min(base.0 * k, 1),
+            green: min(base.1 * k, 1),
+            blue: min(base.2 * k, 1)
+        )
     }
 }
 
@@ -188,39 +323,8 @@ private struct AlbumRevealEffect: ViewModifier {
             .scaleEffect(folds ? 0.955 + 0.045 * rise : 1)
             .brightness(folds ? -0.08 * (1 - rise) : 0)
             .opacity(folds ? 1 : smoothWindow(f, from: 0.15, to: 0.85))
-            .overlay {
-                // The folding page's shade sweeping off the kraft — the
-                // hinge is at the bottom, so the shadow pools there.
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.18 * sin(f * .pi))],
-                    startPoint: UnitPoint(x: 0.5, y: 0.35),
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-            }
             .allowsHitTesting(engine.scrubbing || f > 0.98)
             .accessibilityHidden(f < 0.5)
-    }
-}
-
-/// The page's lay-back as one projection about its bottom edge — a
-/// GeometryEffect so that at rest it is a TRUE identity (no transform
-/// layer, no hit-test detour; the XCUITest event-routing lesson from
-/// the stage's PageTurn holds here too).
-private struct SheetFoldGeometry: GeometryEffect {
-    var fold: Double
-
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        guard fold > 0.0001 else { return ProjectionTransform() }
-        var t = CATransform3DIdentity
-        // Eye distance ~1.9 page-heights: a sheet on a table, not a
-        // door slamming in a fisheye.
-        t.m34 = -1 / max(size.height * 1.9, 1)
-        t = CATransform3DTranslate(t, 0, size.height, 0)
-        t = CATransform3DRotate(t, fold * 76 * .pi / 180, 1, 0, 0)
-        t = CATransform3DTranslate(t, 0, -size.height, 0)
-        return ProjectionTransform(t)
     }
 }
 

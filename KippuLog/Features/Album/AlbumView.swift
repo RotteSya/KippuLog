@@ -109,8 +109,6 @@ private struct YearSpread: View {
     var onOpen: (Ticket) -> Void
     var onJumpMonth: (DateComponents) -> Void
 
-    @State private var appeared = false
-
     private static let kraft = Color.dynamic(light: 0xDDD3BD, dark: 0x453E30)
     private static let kraftEdge = Color.dynamic(light: 0xC9BC9F, dark: 0x575040)
 
@@ -135,7 +133,11 @@ private struct YearSpread: View {
                 columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14), GridItem(.flexible())],
                 spacing: 20
             ) {
-                ForEach(Array(flattened.enumerated()), id: \.element.ticket.id) { i, item in
+                // No entrance stagger: the collection is always lying
+                // beneath the issue, complete — uncovering it IS the
+                // transition, and a book doesn't re-print its contents
+                // when the page above rolls away.
+                ForEach(flattened, id: \.ticket.id) { item in
                     AlbumMini(
                         ticket: item.ticket,
                         monthSlip: item.monthStart,
@@ -143,13 +145,6 @@ private struct YearSpread: View {
                         onJumpMonth: onJumpMonth
                     )
                     .id("a-cell-\(item.ticket.id)")
-                    .opacity(appeared ? 1 : 0)
-                    .scaleEffect(appeared ? 1 : 0.86)
-                    .animation(
-                        .spring(response: 0.5, dampingFraction: 0.78)
-                            .delay(Double(min(i, 14)) * 0.025),
-                        value: appeared
-                    )
                 }
             }
             .padding(18)
@@ -176,12 +171,6 @@ private struct YearSpread: View {
                             .strokeBorder(Self.kraftEdge.opacity(0.6), lineWidth: 0.8)
                     }
                     .shadow(color: .black.opacity(0.10), radius: 14, y: 8)
-            }
-        }
-        .onAppear {
-            guard !appeared else { return }
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) {
-                appeared = true
             }
         }
     }
